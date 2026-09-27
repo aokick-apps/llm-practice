@@ -32,6 +32,27 @@ def test_save_conversation_filename_contains_question_snippet(tmp_path, monkeypa
     assert path.suffix == ".md"
 
 
+def test_save_conversation_filename_includes_microsecond_timestamp(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+
+    path = memory.save_conversation(question="質問", answer="回答", thread_id="thread-a")
+
+    timestamp_part = path.name[: memory._TIMESTAMP_WITH_MICROSECOND_LEN]
+    datetime.strptime(timestamp_part, memory._TIMESTAMP_WITH_MICROSECOND_FORMAT)
+
+
+def test_list_threads_order_is_stable_for_threads_saved_in_the_same_second(tmp_path, monkeypatch):
+    """同一秒に複数スレッドが保存された場合でも、マイクロ秒精度によりソート順が安定する。"""
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    _write_log(tmp_path, "thread-first", "20240101_090000_000001_aaa111_q.md", question="Q1")
+    _write_log(tmp_path, "thread-second", "20240101_090000_000002_bbb222_q.md", question="Q2")
+    _write_log(tmp_path, "thread-third", "20240101_090000_000003_ccc333_q.md", question="Q3")
+
+    threads = memory.list_threads()
+
+    assert [t["thread_id"] for t in threads] == ["thread-third", "thread-second", "thread-first"]
+
+
 def test_save_conversation_isolates_threads(tmp_path, monkeypatch):
     monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
 

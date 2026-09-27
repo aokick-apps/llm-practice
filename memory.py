@@ -48,6 +48,14 @@ _SOURCES_LENGTH_PATTERN = re.compile(r"^- 参照元文字数: (\d+)$", re.MULTIL
 _QUESTION_PATTERN = re.compile(r"## 質問\n\n(.*?)\n\n## 回答", re.DOTALL)
 _ANSWER_PATTERN = re.compile(r"## 回答\n\n(.*)", re.DOTALL)
 
+# save_conversation()が付与するファイル名のタイムスタンプ形式。マイクロ秒まで含めることで、
+# 同一秒内に複数保存された会話ログでもlist_threads()/load_conversation()のソート順が安定する。
+# 旧形式（秒精度のみ、15文字）のファイルは_parse_created_at()側で後方互換として読み続ける。
+_TIMESTAMP_FORMAT = "%Y%m%d_%H%M%S"
+_TIMESTAMP_WITH_MICROSECOND_FORMAT = "%Y%m%d_%H%M%S_%f"
+_TIMESTAMP_LEN = 15
+_TIMESTAMP_WITH_MICROSECOND_LEN = 22
+
 # new_thread_id()が生成するuuid hex文字列を含む、英数字・ハイフン・アンダースコアのみを許可する。
 # 将来thread_idに外部入力がそのまま渡されるようになってもパストラバーサルが起きないようにする。
 # api/main.py側の検証（長さ制限・resolve()によるパストラバーサル対策を追加で行う）も
@@ -114,7 +122,8 @@ def save_conversation(
     thread_dir.mkdir(parents=True, exist_ok=True)
 
     now = datetime.now()
-    filename = f"{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}_{_slugify_snippet(question)}.md"
+    timestamp = now.strftime(_TIMESTAMP_WITH_MICROSECOND_FORMAT)
+    filename = f"{timestamp}_{uuid.uuid4().hex[:6]}_{_slugify_snippet(question)}.md"
     path = thread_dir / filename
 
     sources_json = None
@@ -247,11 +256,16 @@ def strip_sources_section(content: str) -> str:
 def _parse_created_at(path: Path) -> datetime:
     """ファイル名の先頭（save_conversationが付与するタイムスタンプ）から作成日時を復元する。
 
-    命名規則から外れたファイル（手動で置かれた等）が万一あってもクラッシュしないよう、
-    パースに失敗した場合はファイルの更新日時にフォールバックする。
+    マイクロ秒付きの新形式を先に試し、失敗したら秒精度のみの旧形式で再試行する。
+    いずれの命名規則にも合わないファイル（手動で置かれた等）が万一あってもクラッシュ
+    しないよう、パースに失敗した場合はファイルの更新日時にフォールバックする。
     """
     try:
-        return datetime.strptime(path.name[:15], "%Y%m%d_%H%M%S")
+        return datetime.strptime(path.name[:_TIMESTAMP_WITH_MICROSECOND_LEN], _TIMESTAMP_WITH_MICROSECOND_FORMAT)
+    except ValueError:
+        pass
+    try:
+        return datetime.strptime(path.name[:_TIMESTAMP_LEN], _TIMESTAMP_FORMAT)
     except ValueError:
         return datetime.fromtimestamp(path.stat().st_mtime)
 
