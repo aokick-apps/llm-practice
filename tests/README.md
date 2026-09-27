@@ -38,6 +38,7 @@ pytest
 | `test_google_drive_sync.py` | `google_drive_sync.py` | Google Driveの指定フォルダを `data/google_drive/` にミラーする処理（Google Docs/Sheets/Slidesのexport、通常ファイルのダウンロード、未対応拡張子のスキップ、削除検知、`GOOGLE_DRIVE_FOLDER_ID`未設定時のスキップ、認証情報ファイル不在時のエラー）のテスト（実際のGoogle API呼び出し・OAuth認証は行わずフェイクに差し替える） |
 | `test_rag_chain.py` | `rag_chain.py` | 検索結果の関連度採点（`_grade_relevance`）と、「見つからない場合」のフォールバック応答のテスト |
 | `test_memory.py` | `memory.py` | 会話ログの保存（Markdownファイル書き込み）・件数カウントのテスト |
+| `test_memory_timestamp_backcompat.py` | `memory.py` | 会話ログファイル名のタイムスタンプ（マイクロ秒精度対応）に関する追加テスト。旧形式（秒精度のみ）ファイル名の後方互換読み込み、同一秒内の連続保存でのファイル名一意性・順序、パース不能なファイル名のmtimeフォールバックの検証 |
 | `test_feedback.py` | `feedback.py` | 回答フィードバック（👍/👎）の記録処理（`record_feedback`、JSON Linesへの追記・不正なratingの拒否）のテスト |
 | `test_history_utils.py` | `history_utils.py` | 会話履歴のトークン数見積もり（CJK比率に応じた`chars_per_token`の動的補正、`_cjk_ratio` / `_effective_chars_per_token` / `_count_tokens_ja_aware`）のテスト |
 | `test_app.py` | `app.py` | Streamlitのチャット画面のエラーハンドリングのテスト（`streamlit.testing.v1.AppTest` を使いスクリプト実行エンジン上で検証） |

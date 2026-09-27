@@ -52,9 +52,13 @@ _ANSWER_PATTERN = re.compile(r"## 回答\n\n(.*)", re.DOTALL)
 # 同一秒内に複数保存された会話ログでもlist_threads()/load_conversation()のソート順が安定する。
 # 旧形式（秒精度のみ、15文字）のファイルは_parse_created_at()側で後方互換として読み続ける。
 _TIMESTAMP_FORMAT = "%Y%m%d_%H%M%S"
-_TIMESTAMP_WITH_MICROSECOND_FORMAT = "%Y%m%d_%H%M%S_%f"
 _TIMESTAMP_LEN = 15
-_TIMESTAMP_WITH_MICROSECOND_LEN = 22
+
+# マイクロ秒は "_u<6桁の数字>" というマーカー付きの独立したセグメントとして付与する。
+# uuidのhex接尾辞（0-9a-fのみ）は "u" を含み得ないため、桁数ではなくこのマーカーの
+# 有無で新旧形式を確実に判別できる（uuid接尾辞が偶然数字だけになるケースでも誤判定しない）。
+_MICROSECOND_MARKER = "u"
+_NEW_FORMAT_PATTERN = re.compile(r"^(\d{8}_\d{6})_u(\d{6})_")
 
 # new_thread_id()が生成するuuid hex文字列を含む、英数字・ハイフン・アンダースコアのみを許可する。
 # 将来thread_idに外部入力がそのまま渡されるようになってもパストラバーサルが起きないようにする。
@@ -122,8 +126,10 @@ def save_conversation(
     thread_dir.mkdir(parents=True, exist_ok=True)
 
     now = datetime.now()
-    timestamp = now.strftime(_TIMESTAMP_WITH_MICROSECOND_FORMAT)
-    filename = f"{timestamp}_{uuid.uuid4().hex[:6]}_{_slugify_snippet(question)}.md"
+    timestamp = now.strftime(_TIMESTAMP_FORMAT)
+    filename = (
+        f"{timestamp}_{_MICROSECOND_MARKER}{now.microsecond:06d}_{uuid.uuid4().hex[:6]}_{_slugify_snippet(question)}.md"
+    )
     path = thread_dir / filename
 
     sources_json = None
@@ -256,14 +262,17 @@ def strip_sources_section(content: str) -> str:
 def _parse_created_at(path: Path) -> datetime:
     """ファイル名の先頭（save_conversationが付与するタイムスタンプ）から作成日時を復元する。
 
-    マイクロ秒付きの新形式を先に試し、失敗したら秒精度のみの旧形式で再試行する。
-    いずれの命名規則にも合わないファイル（手動で置かれた等）が万一あってもクラッシュ
-    しないよう、パースに失敗した場合はファイルの更新日時にフォールバックする。
+    マイクロ秒マーカー（_NEW_FORMAT_PATTERN）付きの新形式を先に試し、無ければ
+    秒精度のみの旧形式で再試行する。いずれの命名規則にも合わないファイル（手動で
+    置かれた等）が万一あってもクラッシュしないよう、パースに失敗した場合はファイルの
+    更新日時にフォールバックする。
     """
-    try:
-        return datetime.strptime(path.name[:_TIMESTAMP_WITH_MICROSECOND_LEN], _TIMESTAMP_WITH_MICROSECOND_FORMAT)
-    except ValueError:
-        pass
+    match = _NEW_FORMAT_PATTERN.match(path.name)
+    if match:
+        try:
+            return datetime.strptime(match.group(1), _TIMESTAMP_FORMAT).replace(microsecond=int(match.group(2)))
+        except ValueError:
+            pass
     try:
         return datetime.strptime(path.name[:_TIMESTAMP_LEN], _TIMESTAMP_FORMAT)
     except ValueError:

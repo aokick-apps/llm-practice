@@ -37,16 +37,17 @@ def test_save_conversation_filename_includes_microsecond_timestamp(tmp_path, mon
 
     path = memory.save_conversation(question="質問", answer="回答", thread_id="thread-a")
 
-    timestamp_part = path.name[: memory._TIMESTAMP_WITH_MICROSECOND_LEN]
-    datetime.strptime(timestamp_part, memory._TIMESTAMP_WITH_MICROSECOND_FORMAT)
+    match = memory._NEW_FORMAT_PATTERN.match(path.name)
+    assert match is not None
+    datetime.strptime(match.group(1), memory._TIMESTAMP_FORMAT).replace(microsecond=int(match.group(2)))
 
 
 def test_list_threads_order_is_stable_for_threads_saved_in_the_same_second(tmp_path, monkeypatch):
     """同一秒に複数スレッドが保存された場合でも、マイクロ秒精度によりソート順が安定する。"""
     monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
-    _write_log(tmp_path, "thread-first", "20240101_090000_000001_aaa111_q.md", question="Q1")
-    _write_log(tmp_path, "thread-second", "20240101_090000_000002_bbb222_q.md", question="Q2")
-    _write_log(tmp_path, "thread-third", "20240101_090000_000003_ccc333_q.md", question="Q3")
+    _write_log(tmp_path, "thread-first", "20240101_090000_u000001_aaa111_q.md", question="Q1")
+    _write_log(tmp_path, "thread-second", "20240101_090000_u000002_bbb222_q.md", question="Q2")
+    _write_log(tmp_path, "thread-third", "20240101_090000_u000003_ccc333_q.md", question="Q3")
 
     threads = memory.list_threads()
 
