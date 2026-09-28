@@ -2927,8 +2927,8 @@ def test_past_threads_selectbox_disables_native_typeahead_filter_mode(monkeypatc
     assert at.sidebar.selectbox[0].proto.filter_mode == SelectWidgetFilterMode.FILTER_MODE_NONE
 
 
-def test_past_threads_selectbox_help_shows_full_label_of_active_thread(monkeypatch):
-    """正常系: 現在表示中のスレッドが選択肢に含まれる場合、helpツールチップに
+def test_past_threads_selectbox_caption_shows_full_label_of_active_thread(monkeypatch):
+    """正常系: 現在表示中のスレッドが選択肢に含まれる場合、直下のキャプションに
     そのスレッドの完全なラベルが表示され、selectbox幅で見切れても内容を確認できる。"""
     from datetime import datetime
 
@@ -2950,12 +2950,12 @@ def test_past_threads_selectbox_help_shows_full_label_of_active_thread(monkeypat
     at = _run_app()
 
     assert at.exception == []
-    assert at.sidebar.selectbox[0].help == "2024/01/01 09:00｜質問A（2件）"
+    assert any("2024/01/01 09:00｜質問A（2件）" in c.value for c in at.sidebar.caption)
 
 
-def test_past_threads_selectbox_help_shows_generic_hint_when_no_active_thread(monkeypatch):
+def test_past_threads_selectbox_caption_hidden_when_no_active_thread(monkeypatch):
     """境界値: 現在表示中のスレッドが選択肢に含まれない場合（検索で絞り込まれ非表示等）、
-    helpツールチップには汎用の案内文を表示する。"""
+    selectboxはプレースホルダー状態となり、完全ラベルのキャプションは表示されない。"""
     from datetime import datetime
 
     monkeypatch.setattr(
@@ -2974,7 +2974,7 @@ def test_past_threads_selectbox_help_shows_generic_hint_when_no_active_thread(mo
     at = _run_app()
 
     assert at.exception == []
-    assert at.sidebar.selectbox[0].help == "選択中のスレッドの詳細な日時・要約を表示します"
+    assert not any("質問A" in c.value for c in at.sidebar.caption)
 
 
 def test_past_thread_label_uses_saved_title_when_set(monkeypatch):

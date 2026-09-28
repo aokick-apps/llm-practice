@@ -948,9 +948,6 @@ with st.sidebar:
             active_index = (
                 thread_ids.index(st.session_state.thread_id) if st.session_state.thread_id in thread_ids else None
             )
-            # ラベルは短縮済みでも選択中の項目が狭いselectbox幅で見切れることがあるため、
-            # helpツールチップ（冒頭で幅・影を調整済み）で完全なラベルを確認できるようにする。
-            active_label = thread_labels.get(st.session_state.thread_id)
             selected_thread_id = st.selectbox(
                 "過去のスレッドを選んで再開",
                 options=thread_ids,
@@ -959,11 +956,15 @@ with st.sidebar:
                 placeholder="スレッドを選択...",
                 key=_thread_selector_key(st.session_state.thread_id, thread_labels),
                 label_visibility="collapsed",
-                help=active_label if active_label else "選択中のスレッドの詳細な日時・要約を表示します",
                 # ネイティブのタイプアヘッド検索は該当なし時に英語"No results"を表示してしまい
                 # 上のtext_inputによる日本語検索と機能も重複するため無効化する。
                 filter_mode=None,
             )
+            # ラベルは短縮済みでもselectbox幅で見切れることがあるため、選択中スレッドの完全な
+            # ラベルをキャプションで常時表示する。label_visibility="collapsed"下ではStreamlitが
+            # ラベル要素ごとdisplay:noneにしてhelp=のツールチップアイコンも操作不能になるため使わない。
+            if selected_thread_id:
+                st.caption(f"🔎 {thread_labels[selected_thread_id]}")
             # 選択値が現在表示中のスレッドと異なる場合のみ切り替える。同じ場合はスキップし、
             # 選択操作以外の理由での再実行（他のウィジェット操作等）で毎回再構築されないようにする。
             if selected_thread_id and selected_thread_id != st.session_state.thread_id:
