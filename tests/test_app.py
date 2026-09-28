@@ -2977,6 +2977,33 @@ def test_past_threads_selectbox_caption_hidden_when_no_active_thread(monkeypatch
     assert not any("質問A" in c.value for c in at.sidebar.caption)
 
 
+def test_past_threads_selectbox_caption_shows_saved_title_label_when_set(monkeypatch):
+    """正常系: アクティブなスレッドにタイトルが設定済みの場合、キャプションには
+    selectboxの選択肢と同じ「📌 タイトル（自動生成ラベル）」形式の完全ラベルが表示される。"""
+    from datetime import datetime
+
+    monkeypatch.setattr(
+        memory,
+        "list_threads",
+        lambda: [
+            {
+                "thread_id": "thread-test",  # autouseフィクスチャのnew_thread_idが返す固定値
+                "created_at": datetime(2024, 1, 1, 9, 0),
+                "first_question": "質問A",
+                "count": 2,
+            }
+        ],
+    )
+    monkeypatch.setattr(memory, "load_thread_title", lambda thread_id: "経費精算について")
+
+    at = _run_app()
+
+    assert at.exception == []
+    assert any(
+        "📌 経費精算について（2024/01/01 09:00｜質問A（2件））" in c.value for c in at.sidebar.caption
+    )
+
+
 def test_past_thread_label_uses_saved_title_when_set(monkeypatch):
     """正常系: タイトルが設定済みのスレッドは、自動生成ラベルの代わりにタイトルを主表示にする。"""
     from datetime import datetime
