@@ -292,3 +292,42 @@ def test_format_thread_label_truncates_long_question_to_16_chars(app_module):
     }
     label = app_module._format_thread_label(thread)
     assert label == "03/15 09:05｜" + "あ" * 16 + "...（1件）"
+
+
+def test_format_thread_label_snippet_of_exactly_16_chars_is_not_truncated(app_module):
+    """境界値: 質問文がちょうど上限文字数(16文字)の場合は切り詰めず、"..."も付かない。"""
+    this_year = datetime.now().year
+    thread = {
+        "thread_id": "abc123",
+        "created_at": datetime(this_year, 3, 15, 9, 5, 0),
+        "first_question": "あ" * 16,
+        "count": 1,
+    }
+    label = app_module._format_thread_label(thread)
+    assert label == "03/15 09:05｜" + "あ" * 16 + "（1件）"
+
+
+def test_format_thread_label_snippet_of_17_chars_is_truncated_with_ellipsis(app_module):
+    """境界値: 質問文が上限文字数を1文字超える(17文字)場合、16文字に切り詰められ"..."が付く。"""
+    this_year = datetime.now().year
+    thread = {
+        "thread_id": "abc123",
+        "created_at": datetime(this_year, 3, 15, 9, 5, 0),
+        "first_question": "あ" * 17,
+        "count": 1,
+    }
+    label = app_module._format_thread_label(thread)
+    assert label == "03/15 09:05｜" + "あ" * 16 + "...（1件）"
+
+
+def test_format_thread_label_first_question_none_shows_placeholder(app_module):
+    """境界値: first_questionがNone（想定外の入力）でも例外を送出せずプレースホルダーになる。"""
+    this_year = datetime.now().year
+    thread = {
+        "thread_id": "abc123",
+        "created_at": datetime(this_year, 3, 15, 9, 5, 0),
+        "first_question": None,
+        "count": 0,
+    }
+    label = app_module._format_thread_label(thread)
+    assert label == "03/15 09:05｜(質問内容なし)（0件）"
