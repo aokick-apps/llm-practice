@@ -78,13 +78,13 @@ from source_formatting import format_snippet as _format_snippet
 from source_formatting import format_source_label as _format_source_label
 
 # 配色・フォントは .streamlit/config.toml のカスタムテーマで設定している。
-# initial_sidebar_state="expanded"は、デフォルト"auto"だと狭い画面幅で
-# サイドバーが自動的に折りたたまれてしまうのを防ぐための指定。
+# initial_sidebar_state="auto"で、狭い画面幅ではサイドバーを折りたたみ、
+# チャット本文が隠れないようにする（広い画面幅では展開される）。
 st.set_page_config(
     page_title="Doclore | ドキュメントAIアシスタント",
     page_icon="📖",
     layout="centered",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 st.title("📖 Doclore")
 st.markdown("##### あなたの資料から、迷わず答えへ。")
