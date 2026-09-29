@@ -243,36 +243,91 @@ def test_format_source_label_unknown_source_with_page(app_module):
 
 
 def test_format_thread_label_formats_timestamp_question_and_count(app_module):
-    """正常系: 「YYYY-MM-DD HH:MM｜質問の要約（N件）」の形式でラベルを組み立てる。"""
+    """正常系: 今年のスレッドは年を省いた「MM/DD HH:MM｜質問の要約（N件）」の形式でラベルを組み立てる。"""
+    this_year = datetime.now().year
     thread = {
         "thread_id": "abc123",
-        "created_at": datetime(2024, 3, 15, 9, 5, 0),
+        "created_at": datetime(this_year, 3, 15, 9, 5, 0),
         "first_question": "短い質問",
         "count": 4,
     }
     label = app_module._format_thread_label(thread)
-    assert label == "2024-03-15 09:05｜短い質問（4件）"
+    assert label == "03/15 09:05｜短い質問（4件）"
+
+
+def test_format_thread_label_includes_year_for_past_years(app_module):
+    """境界値: 今年ではないスレッドは見分けがつくよう「YYYY/MM/DD HH:MM」の形式で年も表示する。"""
+    thread = {
+        "thread_id": "abc123",
+        "created_at": datetime(2020, 3, 15, 9, 5, 0),
+        "first_question": "短い質問",
+        "count": 4,
+    }
+    label = app_module._format_thread_label(thread)
+    assert label == "2020/03/15 09:05｜短い質問（4件）"
 
 
 def test_format_thread_label_uses_placeholder_when_first_question_empty(app_module):
     """境界値: first_questionが空文字列の場合は「(質問内容なし)」というプレースホルダーになる。"""
+    this_year = datetime.now().year
     thread = {
         "thread_id": "abc123",
-        "created_at": datetime(2024, 3, 15, 9, 5, 0),
+        "created_at": datetime(this_year, 3, 15, 9, 5, 0),
         "first_question": "",
         "count": 0,
     }
     label = app_module._format_thread_label(thread)
-    assert label == "2024-03-15 09:05｜(質問内容なし)（0件）"
+    assert label == "03/15 09:05｜(質問内容なし)（0件）"
 
 
-def test_format_thread_label_truncates_long_question_to_24_chars(app_module):
-    """境界値: 質問文は_format_snippet(limit=24)で要約され、24文字を超える分は"..."になる。"""
+def test_format_thread_label_truncates_long_question_to_16_chars(app_module):
+    """境界値: サイドバーの表示幅で見切れにくいよう、質問文は_format_snippet(limit=16)で
+    要約され、16文字を超える分は"..."になる。"""
+    this_year = datetime.now().year
     thread = {
         "thread_id": "abc123",
-        "created_at": datetime(2024, 3, 15, 9, 5, 0),
+        "created_at": datetime(this_year, 3, 15, 9, 5, 0),
         "first_question": "あ" * 30,
         "count": 1,
     }
     label = app_module._format_thread_label(thread)
-    assert label == "2024-03-15 09:05｜" + "あ" * 24 + "...（1件）"
+    assert label == "03/15 09:05｜" + "あ" * 16 + "...（1件）"
+
+
+def test_format_thread_label_snippet_of_exactly_16_chars_is_not_truncated(app_module):
+    """境界値: 質問文がちょうど上限文字数(16文字)の場合は切り詰めず、"..."も付かない。"""
+    this_year = datetime.now().year
+    thread = {
+        "thread_id": "abc123",
+        "created_at": datetime(this_year, 3, 15, 9, 5, 0),
+        "first_question": "あ" * 16,
+        "count": 1,
+    }
+    label = app_module._format_thread_label(thread)
+    assert label == "03/15 09:05｜" + "あ" * 16 + "（1件）"
+
+
+def test_format_thread_label_snippet_of_17_chars_is_truncated_with_ellipsis(app_module):
+    """境界値: 質問文が上限文字数を1文字超える(17文字)場合、16文字に切り詰められ"..."が付く。"""
+    this_year = datetime.now().year
+    thread = {
+        "thread_id": "abc123",
+        "created_at": datetime(this_year, 3, 15, 9, 5, 0),
+        "first_question": "あ" * 17,
+        "count": 1,
+    }
+    label = app_module._format_thread_label(thread)
+    assert label == "03/15 09:05｜" + "あ" * 16 + "...（1件）"
+
+
+def test_format_thread_label_first_question_none_shows_placeholder(app_module):
+    """境界値: first_questionがNone（想定外の入力）でも例外を送出せずプレースホルダーになる。"""
+    this_year = datetime.now().year
+    thread = {
+        "thread_id": "abc123",
+        "created_at": datetime(this_year, 3, 15, 9, 5, 0),
+        "first_question": None,
+        "count": 0,
+    }
+    label = app_module._format_thread_label(thread)
+    assert label == "03/15 09:05｜(質問内容なし)（0件）"

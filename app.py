@@ -338,10 +338,25 @@ def _format_message_timestamp(timestamp: datetime | None) -> str | None:
     return timestamp.strftime("%m/%d %H:%M")
 
 
+_THREAD_LABEL_SNIPPET_LIMIT = 16
+
+
 def _format_thread_label(thread: dict) -> str:
-    """過去スレッド選択UI用に、作成日時と最初の質問の要約を組み合わせたラベルを作る。"""
-    timestamp = thread["created_at"].strftime("%Y-%m-%d %H:%M")
-    snippet = _format_snippet(thread["first_question"], limit=24) if thread["first_question"] else "(質問内容なし)"
+    """過去スレッド選択UI用に、作成日時と最初の質問の要約を組み合わせたラベルを作る。
+
+    サイドバーのselectboxは幅が狭く長いラベルが見切れやすいため、日時は今年のスレッドなら
+    年を省いて短縮する（_format_message_timestampと同じ考え方）。
+    """
+    created_at = thread["created_at"]
+    if created_at.year == datetime.now().year:
+        timestamp = created_at.strftime("%m/%d %H:%M")
+    else:
+        timestamp = created_at.strftime("%Y/%m/%d %H:%M")
+    snippet = (
+        _format_snippet(thread["first_question"], limit=_THREAD_LABEL_SNIPPET_LIMIT)
+        if thread["first_question"]
+        else "(質問内容なし)"
+    )
     return f"{timestamp}｜{snippet}（{thread['count']}件）"
 
 
@@ -945,6 +960,11 @@ with st.sidebar:
                 # 上のtext_inputによる日本語検索と機能も重複するため無効化する。
                 filter_mode=None,
             )
+            # ラベルは短縮済みでもselectbox幅で見切れることがあるため、選択中スレッドの完全な
+            # ラベルをキャプションで常時表示する。label_visibility="collapsed"下ではStreamlitが
+            # ラベル要素ごとdisplay:noneにしてhelp=のツールチップアイコンも操作不能になるため使わない。
+            if selected_thread_id:
+                st.caption(f"🔎 {thread_labels[selected_thread_id]}")
             # 選択値が現在表示中のスレッドと異なる場合のみ切り替える。同じ場合はスキップし、
             # 選択操作以外の理由での再実行（他のウィジェット操作等）で毎回再構築されないようにする。
             if selected_thread_id and selected_thread_id != st.session_state.thread_id:

@@ -2796,8 +2796,8 @@ def test_past_threads_selectbox_shows_formatted_labels_when_threads_exist(monkey
     assert not any("まだ保存された会話スレッドはありません。" in c.value for c in at.sidebar.caption)
     assert len(at.sidebar.selectbox) == 1
     assert at.sidebar.selectbox[0].options == [
-        "2024-01-01 09:00｜質問A（2件）",
-        "2024-01-02 09:00｜質問B（1件）",
+        "2024/01/01 09:00｜質問A（2件）",
+        "2024/01/02 09:00｜質問B（1件）",
     ]
 
 
@@ -2832,7 +2832,7 @@ def test_thread_search_input_narrows_down_selectbox_options(monkeypatch):
     at = at.sidebar.text_input(key="thread_search").set_value("RAG").run()
 
     assert at.exception == []
-    assert at.sidebar.selectbox[0].options == ["2024-01-01 09:00｜RAGとは何ですか（2件）"]
+    assert at.sidebar.selectbox[0].options == ["2024/01/01 09:00｜RAGとは何ですか（2件）"]
 
 
 def test_thread_search_input_no_match_shows_caption_and_no_selectbox(monkeypatch):
@@ -2927,6 +2927,81 @@ def test_past_threads_selectbox_disables_native_typeahead_filter_mode(monkeypatc
     assert at.sidebar.selectbox[0].proto.filter_mode == SelectWidgetFilterMode.FILTER_MODE_NONE
 
 
+def test_past_threads_selectbox_caption_shows_full_label_of_active_thread(monkeypatch):
+    """正常系: 現在表示中のスレッドが選択肢に含まれる場合、直下のキャプションに
+    そのスレッドの完全なラベルが表示され、selectbox幅で見切れても内容を確認できる。"""
+    from datetime import datetime
+
+    monkeypatch.setattr(
+        memory,
+        "list_threads",
+        lambda: [
+            # 「thread-test」はautouseフィクスチャのnew_thread_idが返す固定値と一致させ、
+            # 現在表示中のスレッドとして選択済み状態にする。
+            {
+                "thread_id": "thread-test",
+                "created_at": datetime(2024, 1, 1, 9, 0),
+                "first_question": "質問A",
+                "count": 2,
+            }
+        ],
+    )
+
+    at = _run_app()
+
+    assert at.exception == []
+    assert any("2024/01/01 09:00｜質問A（2件）" in c.value for c in at.sidebar.caption)
+
+
+def test_past_threads_selectbox_caption_hidden_when_no_active_thread(monkeypatch):
+    """境界値: 現在表示中のスレッドが選択肢に含まれない場合（検索で絞り込まれ非表示等）、
+    selectboxはプレースホルダー状態となり、完全ラベルのキャプションは表示されない。"""
+    from datetime import datetime
+
+    monkeypatch.setattr(
+        memory,
+        "list_threads",
+        lambda: [
+            {
+                "thread_id": "thread-other",
+                "created_at": datetime(2024, 1, 1, 9, 0),
+                "first_question": "質問A",
+                "count": 2,
+            }
+        ],
+    )
+
+    at = _run_app()
+
+    assert at.exception == []
+    assert not any("質問A" in c.value for c in at.sidebar.caption)
+
+
+def test_past_threads_selectbox_caption_shows_saved_title_label_when_set(monkeypatch):
+    """正常系: アクティブなスレッドにタイトルが設定済みの場合、キャプションには
+    selectboxの選択肢と同じ「📌 タイトル（自動生成ラベル）」形式の完全ラベルが表示される。"""
+    from datetime import datetime
+
+    monkeypatch.setattr(
+        memory,
+        "list_threads",
+        lambda: [
+            {
+                "thread_id": "thread-test",  # autouseフィクスチャのnew_thread_idが返す固定値
+                "created_at": datetime(2024, 1, 1, 9, 0),
+                "first_question": "質問A",
+                "count": 2,
+            }
+        ],
+    )
+    monkeypatch.setattr(memory, "load_thread_title", lambda thread_id: "経費精算について")
+
+    at = _run_app()
+
+    assert at.exception == []
+    assert any("📌 経費精算について（2024/01/01 09:00｜質問A（2件））" in c.value for c in at.sidebar.caption)
+
+
 def test_past_thread_label_uses_saved_title_when_set(monkeypatch):
     """正常系: タイトルが設定済みのスレッドは、自動生成ラベルの代わりにタイトルを主表示にする。"""
     from datetime import datetime
@@ -2948,7 +3023,7 @@ def test_past_thread_label_uses_saved_title_when_set(monkeypatch):
     at = _run_app()
 
     assert at.exception == []
-    assert at.sidebar.selectbox[0].options == ["📌 経費精算について（2024-01-01 09:00｜質問A（2件））"]
+    assert at.sidebar.selectbox[0].options == ["📌 経費精算について（2024/01/01 09:00｜質問A（2件））"]
 
 
 def test_past_thread_label_falls_back_to_auto_label_when_title_unset(monkeypatch):
@@ -2972,7 +3047,7 @@ def test_past_thread_label_falls_back_to_auto_label_when_title_unset(monkeypatch
     at = _run_app()
 
     assert at.exception == []
-    assert at.sidebar.selectbox[0].options == ["2024-01-01 09:00｜質問A（2件）"]
+    assert at.sidebar.selectbox[0].options == ["2024/01/01 09:00｜質問A（2件）"]
 
 
 def test_thread_title_edit_form_hidden_when_current_thread_has_no_saved_conversation():
@@ -3104,7 +3179,7 @@ def test_past_thread_label_truncates_long_title_so_auto_label_stays_visible(monk
 
     assert at.exception == []
     label = at.sidebar.selectbox[0].options[0]
-    assert "2024-01-01 09:00｜質問A（2件）" in label
+    assert "2024/01/01 09:00｜質問A（2件）" in label
     assert long_title not in label
 
 
@@ -3168,7 +3243,7 @@ def test_thread_display_label_emoji_title_truncates_without_raising(monkeypatch)
     label = app._thread_display_label(thread)
 
     assert label.startswith("📌 ")
-    assert label.endswith("...（2024-01-01 09:00｜質問A（1件））")
+    assert label.endswith("...（2024/01/01 09:00｜質問A（1件））")
     assert title not in label
 
 
