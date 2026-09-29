@@ -2999,9 +2999,7 @@ def test_past_threads_selectbox_caption_shows_saved_title_label_when_set(monkeyp
     at = _run_app()
 
     assert at.exception == []
-    assert any(
-        "📌 経費精算について（2024/01/01 09:00｜質問A（2件））" in c.value for c in at.sidebar.caption
-    )
+    assert any("📌 経費精算について（2024/01/01 09:00｜質問A（2件））" in c.value for c in at.sidebar.caption)
 
 
 def test_past_thread_label_uses_saved_title_when_set(monkeypatch):
