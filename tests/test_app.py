@@ -6182,3 +6182,45 @@ def test_search_target_checkbox_passes_selected_sources_to_agent_filter(monkeypa
 
     assert at.exception == []
     assert captured["source_filter"]() == [str(ingest.DATA_DIR / "b.txt")]
+
+
+def test_search_target_checkbox_supports_multiple_selection_and_uncheck(monkeypatch):
+    """複数ファイルを選択でき、チェックを外すと全件対象（空）に戻る。"""
+    monkeypatch.setattr(
+        ingest,
+        "list_indexed_files",
+        lambda: [{"name": "a.txt", "chunk_count": 1}, {"name": "b.txt", "chunk_count": 1}],
+    )
+    captured = {}
+
+    def fake_build_agent(thread_id=None, chat_model=None, source_filter=None):
+        captured["source_filter"] = source_filter
+        return _FakeAgent()
+
+    monkeypatch.setattr(rag_chain, "build_agent", fake_build_agent)
+
+    at = _run_app()
+    for name in ("a.txt", "b.txt"):
+        at = next(c for c in at.sidebar.checkbox if c.key == f"search_target_{name}").check().run()
+    assert captured["source_filter"]() == [str(ingest.DATA_DIR / "a.txt"), str(ingest.DATA_DIR / "b.txt")]
+
+    for name in ("a.txt", "b.txt"):
+        at = next(c for c in at.sidebar.checkbox if c.key == f"search_target_{name}").uncheck().run()
+    assert at.exception == []
+    assert captured["source_filter"]() == []
+
+
+def test_search_target_filter_is_empty_when_no_indexed_files(monkeypatch):
+    """インデックス済みファイルが無い場合、source_filter は空を返す。"""
+    monkeypatch.setattr(ingest, "list_indexed_files", lambda: [])
+    captured = {}
+
+    def fake_build_agent(thread_id=None, chat_model=None, source_filter=None):
+        captured["source_filter"] = source_filter
+        return _FakeAgent()
+
+    monkeypatch.setattr(rag_chain, "build_agent", fake_build_agent)
+
+    at = _run_app()
+    assert at.exception == []
+    assert captured["source_filter"]() == []
