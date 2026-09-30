@@ -212,7 +212,7 @@ def _grade_relevance(query: str, docs: list, chat_model=None) -> list[int]:
     return sorted({int(n) - 1 for n in re.findall(r"\d+", answer_line) if 0 < int(n) <= len(docs)})
 
 
-def build_agent(thread_id: str = GLOBAL_THREAD_ID, chat_model=None):
+def build_agent(thread_id: str = GLOBAL_THREAD_ID, chat_model=None, source_filter=None):
     """検索ツール付きのRAGエージェントを構築して返す。
 
     thread_id を指定すると、検索対象は共通ナレッジ（thread_id="global"）と
@@ -221,6 +221,10 @@ def build_agent(thread_id: str = GLOBAL_THREAD_ID, chat_model=None):
 
     chat_model省略時はモジュールレベルのグローバルmodel（起動時に自動選択されたモデル）を
     使う。scripts/evaluate_model_accuracy.pyのようにモデルを差し替えて評価したい場合に指定する。
+
+    source_filter は検索のたびに呼ばれ、検索対象にするsourceメタデータのリストを返す
+    （None・空リストなら全件対象）。エージェントを作り直さずに絞り込みを切り替えるために
+    値ではなく呼び出し可能オブジェクトで受け取る。
 
     使い方:
         agent = build_agent(thread_id="abc123")
@@ -250,15 +254,17 @@ def build_agent(thread_id: str = GLOBAL_THREAD_ID, chat_model=None):
         # 以降の検索で再ヒットし裏付けありと誤って扱われる（ハルシネーションの自己増幅）ことを
         # 防ぐため除外する。{"is_fallback": False}ではなく{"$ne": True}にするのは、
         # フィルタ導入前の既存チャンク（メタデータ無し）を誤って除外しないため。
+        conditions = [
+            {"thread_id": {"$in": allowed_thread_ids}},
+            {"is_fallback": {"$ne": True}},
+        ]
+        selected_sources = source_filter() if source_filter else None
+        if selected_sources:
+            conditions.append({"source": {"$in": list(selected_sources)}})
         candidates = vector_store.similarity_search_with_score(
             query,
             k=CANDIDATE_K,
-            filter={
-                "$and": [
-                    {"thread_id": {"$in": allowed_thread_ids}},
-                    {"is_fallback": {"$ne": True}},
-                ]
-            },
+            filter={"$and": conditions},
         )
         narrowed = [(doc, score) for doc, score in candidates if score < RECALL_DISTANCE_THRESHOLD]
 

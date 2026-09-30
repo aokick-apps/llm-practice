@@ -308,10 +308,23 @@ def _show_provider_fallback_warning() -> None:
         st.caption(f"理由: {reason}")
 
 
+def _search_source_holder() -> list[str]:
+    """サイドバーで選んだ検索対象ファイルの受け渡し用リスト。
+
+    スクリプト再実行後も同じオブジェクトをエージェント側から参照し続けられるよう
+    session_stateに保持し、常にin-placeで更新する。
+    """
+    return st.session_state.setdefault("search_source_holder", [])
+
+
 def _build_agent_safely(thread_id: str):
     """build_agent()を例外から保護する共通ヘルパー。失敗時はアプリを落とさずNoneを返す。"""
     try:
-        return build_agent(thread_id, chat_model=st.session_state.get("chat_model"))
+        return build_agent(
+            thread_id,
+            chat_model=st.session_state.get("chat_model"),
+            source_filter=_search_source_holder().copy,
+        )
     except Exception as e:
         st.error(f"アシスタントの初期化に失敗しました。時間をおいて再度お試しください。（詳細: {e}）")
         return None
@@ -429,11 +442,13 @@ def _render_indexed_file_list() -> None:
     「選択したファイルを削除」からまとめて削除することもできる。
     """
     indexed_files = list_indexed_files()
+    _search_source_holder().clear()
     if not indexed_files:
         st.caption("インデックス済みのファイルはまだありません。")
         return
 
     st.caption(f"インデックス済みファイル: {len(indexed_files)}件")
+    st.caption("「検索対象」にチェックしたファイルだけを検索します（未選択なら全件対象）。")
     for file_info in indexed_files:
         name = file_info["name"]
         pending_key = f"pending_delete_{name}"
@@ -442,6 +457,8 @@ def _render_indexed_file_list() -> None:
         # 操作要素同士の重なりを避けるため、ファイル名行と操作行の2段組みにする。
         st.markdown(f"📄 {name}　`{file_info['chunk_count']}チャンク`")
         col_select, col_download, col_delete = st.columns([1, 1, 1])
+        if st.checkbox("検索対象", key=f"search_target_{name}", help="チェックしたファイルだけを検索対象にする"):
+            _search_source_holder().append(str(DATA_DIR / name))
         # ツールチップ幅を一定に保つため、直上の行に表示済みのファイル名は含めず固定文言にする。
         col_select.checkbox("選択", key=select_key, label_visibility="visible", help="一括削除の対象として選択")
         if col_download.button("⬇️ ダウンロード", key=f"download_button_{name}", help="このファイルをダウンロード"):
