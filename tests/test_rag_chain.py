@@ -992,3 +992,41 @@ def test_get_vectorstore_returns_same_instance_across_calls(monkeypatch):
     finally:
         rag_chain.get_vectorstore.cache_clear()
         rag_chain.get_embeddings.cache_clear()
+
+
+# --- source_filter（検索対象ファイルの絞り込み） ---
+
+
+def _build_agent_with_source_filter(monkeypatch, results, source_filter):
+    store = _FakeVectorStore(results)
+    monkeypatch.setattr(rag_chain, "get_vectorstore", lambda: store)
+    agent = rag_chain.build_agent(thread_id="thread-1", source_filter=source_filter)
+    return agent.tools[0], store
+
+
+def test_retrieve_context_without_source_filter_does_not_restrict_source(monkeypatch):
+    retrieve_context, store = _build_agent_with_source_filter(monkeypatch, [], None)
+    retrieve_context.invoke({"query": "質問"})
+    assert all("source" not in c for c in store.last_call["filter"]["$and"])
+
+
+def test_retrieve_context_with_empty_source_filter_does_not_restrict_source(monkeypatch):
+    retrieve_context, store = _build_agent_with_source_filter(monkeypatch, [], lambda: [])
+    retrieve_context.invoke({"query": "質問"})
+    assert all("source" not in c for c in store.last_call["filter"]["$and"])
+
+
+def test_retrieve_context_with_source_filter_adds_source_condition(monkeypatch):
+    retrieve_context, store = _build_agent_with_source_filter(monkeypatch, [], lambda: ["/data/a.txt"])
+    retrieve_context.invoke({"query": "質問"})
+    assert {"source": {"$in": ["/data/a.txt"]}} in store.last_call["filter"]["$and"]
+
+
+def test_retrieve_context_source_filter_is_evaluated_on_each_call(monkeypatch):
+    selected = []
+    retrieve_context, store = _build_agent_with_source_filter(monkeypatch, [], lambda: selected)
+    retrieve_context.invoke({"query": "質問"})
+    assert all("source" not in c for c in store.last_call["filter"]["$and"])
+    selected.append("/data/b.txt")
+    retrieve_context.invoke({"query": "質問"})
+    assert {"source": {"$in": ["/data/b.txt"]}} in store.last_call["filter"]["$and"]
