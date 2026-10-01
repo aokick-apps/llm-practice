@@ -41,7 +41,7 @@ import setup
 # （source_formatting.py）は app.py と api/main.py の両方から使う共通ロジックのため
 # 切り出している。テストが従来通り app._windowed_history 等の名前で参照できるよう、
 # "as 同名" で明示的に再エクスポートする（ruffのunused-import誤検知を防ぐ）。
-from feedback import RATING_DOWN, RATING_UP, record_feedback
+from feedback import RATING_DOWN, RATING_UP, get_recorded_rating, record_feedback
 from history_utils import _API_PROVIDER_HISTORY_TOKENS as _API_PROVIDER_HISTORY_TOKENS
 from history_utils import _FALLBACK_HISTORY_TOKENS as _FALLBACK_HISTORY_TOKENS
 from history_utils import _OLLAMA_CONTEXT_MARGIN_TOKENS as _OLLAMA_CONTEXT_MARGIN_TOKENS
@@ -705,11 +705,11 @@ def _feedback_recorded_key(index: int, log_filename: str | None) -> str:
 def _render_feedback_buttons(question: str, answer: str, index: int, log_filename: str | None = None) -> None:
     """回答の下に👍/👎ボタンを表示し、押下したら data/feedback.jsonl に記録する。
 
-    同じ回答への重複記録・連打を防ぐため、記録済みかどうかをsession_stateで管理し、
-    記録後はボタンの代わりにお礼の一言を表示する。
+    重複記録・連打を防ぐため、記録済みかどうかをsession_stateとfeedback.jsonlの両方で判定し、
+    記録済みならボタンの代わりにお礼の一言を表示する（再読み込み後もファイル側で判定できる）。
     """
     state_key = _feedback_recorded_key(index, log_filename)
-    recorded = st.session_state.get(state_key)
+    recorded = st.session_state.get(state_key) or get_recorded_rating(question, answer, st.session_state.thread_id)
     if recorded:
         icon = "👍" if recorded == RATING_UP else "👎"
         st.caption(f"フィードバックを記録しました（{icon}）。ありがとうございます！")

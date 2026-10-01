@@ -61,6 +61,11 @@ def _patch_light_dependencies(monkeypatch):
     monkeypatch.setattr(memory, "delete_conversation", lambda thread_id, filename: True)
 
 
+@pytest.fixture(autouse=True)
+def _isolated_feedback_path(tmp_path, monkeypatch):
+    monkeypatch.setattr(feedback, "FEEDBACK_PATH", tmp_path / "feedback.jsonl")
+
+
 def _run_app() -> AppTest:
     at = AppTest.from_file(APP_PATH)
     at.run()
@@ -127,6 +132,20 @@ def test_feedback_buttons_hidden_and_thanks_message_after_voting(monkeypatch):
 
     assert _feedback_buttons(at, "up") == []
     assert _feedback_buttons(at, "down") == []
+    assert any("フィードバックを記録しました" in c.value for c in at.caption)
+
+
+def test_feedback_buttons_hidden_when_already_recorded_in_file(monkeypatch):
+    """正常系: feedback.jsonlに記録済みの回答は、session_stateが空（再読み込み後）でも
+    ボタンが表示されず記録済み表示になる。"""
+    at = _run_app()
+    at = at.chat_input[0].set_value("質問です").run()
+    feedback.record_feedback("質問です", "テスト回答です", feedback.RATING_UP, "thread-test")
+
+    at = _run_app()
+    at = at.chat_input[0].set_value("質問です").run()
+
+    assert _feedback_buttons(at, "up") == []
     assert any("フィードバックを記録しました" in c.value for c in at.caption)
 
 
