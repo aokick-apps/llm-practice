@@ -151,7 +151,7 @@ def test_get_recorded_rating_skips_corrupted_and_non_dict_lines(tmp_path, monkey
         {"thread_id": "thread-a", "question": "Q", "answer": "A", "rating": "up"},
         ensure_ascii=False,
     )
-    path.write_text(f"not json\n\n[1, 2]\n\"str\"\n{valid}\n", encoding="utf-8")
+    path.write_text(f'not json\n\n[1, 2]\n"str"\n{valid}\n', encoding="utf-8")
     monkeypatch.setattr(feedback, "FEEDBACK_PATH", path)
 
     assert feedback.get_recorded_rating("Q", "A", "thread-a") == "up"
