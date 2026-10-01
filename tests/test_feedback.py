@@ -111,3 +111,34 @@ def test_default_feedback_path_points_to_data_directory():
     data/feedback.jsonl を指す（.gitignoreの対象パスと一致している必要がある）。"""
     assert feedback.FEEDBACK_PATH.name == "feedback.jsonl"
     assert feedback.FEEDBACK_PATH.parent.name == "data"
+
+
+def test_record_feedback_skips_duplicate(tmp_path, monkeypatch):
+    path = tmp_path / "feedback.jsonl"
+    monkeypatch.setattr(feedback, "FEEDBACK_PATH", path)
+
+    feedback.record_feedback("Q", "A", feedback.RATING_UP, "thread-a")
+    feedback.record_feedback("Q", "A", feedback.RATING_DOWN, "thread-a")
+
+    assert len(path.read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_record_feedback_allows_same_text_in_other_thread(tmp_path, monkeypatch):
+    path = tmp_path / "feedback.jsonl"
+    monkeypatch.setattr(feedback, "FEEDBACK_PATH", path)
+
+    feedback.record_feedback("Q", "A", feedback.RATING_UP, "thread-a")
+    feedback.record_feedback("Q", "A", feedback.RATING_UP, "thread-b")
+
+    assert len(path.read_text(encoding="utf-8").splitlines()) == 2
+
+
+def test_get_recorded_rating(tmp_path, monkeypatch):
+    path = tmp_path / "feedback.jsonl"
+    monkeypatch.setattr(feedback, "FEEDBACK_PATH", path)
+
+    assert feedback.get_recorded_rating("Q", "A", "thread-a") is None
+    feedback.record_feedback("Q", "A", feedback.RATING_DOWN, "thread-a")
+
+    assert feedback.get_recorded_rating("Q", "A", "thread-a") == "down"
+    assert feedback.get_recorded_rating("Q", "A", "thread-b") is None

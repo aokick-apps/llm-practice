@@ -19,13 +19,36 @@ RATING_DOWN = "down"
 _VALID_RATINGS = (RATING_UP, RATING_DOWN)
 
 
+def get_recorded_rating(question: str, answer: str, thread_id: str) -> str | None:
+    """(question, answer, thread_id) が記録済みならその評価を返し、未記録ならNoneを返す。"""
+    if not FEEDBACK_PATH.exists():
+        return None
+    with FEEDBACK_PATH.open(encoding="utf-8") as f:
+        for line in f:
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if (
+                isinstance(record, dict)
+                and record.get("question") == question
+                and record.get("answer") == answer
+                and record.get("thread_id") == thread_id
+            ):
+                return record.get("rating")
+    return None
+
+
 def record_feedback(question: str, answer: str, rating: str, thread_id: str) -> None:
     """1件分の回答評価を data/feedback.jsonl に1行追記する。
 
     rating は RATING_UP（👍）または RATING_DOWN（👎）のいずれか。
+    同じ (question, answer, thread_id) が記録済みの場合は追記しない。
     """
     if rating not in _VALID_RATINGS:
         raise ValueError(f"不正なratingです: {rating!r}")
+    if get_recorded_rating(question, answer, thread_id) is not None:
+        return
 
     FEEDBACK_PATH.parent.mkdir(parents=True, exist_ok=True)
     record = {
