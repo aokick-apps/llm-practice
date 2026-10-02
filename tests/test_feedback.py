@@ -241,3 +241,17 @@ def test_extract_down_records_newest_first_with_limit():
 
     assert [r["question"] for r in feedback.extract_down_records(records)] == ["Q4", "Q3", "Q1"]
     assert [r["question"] for r in feedback.extract_down_records(records, limit=2)] == ["Q4", "Q3"]
+
+
+def test_summarize_feedback_recent_n_boundaries():
+    records = [{"rating": "up"}, {"rating": "down"}]
+
+    assert feedback.summarize_feedback(records, recent_n=0)["recent"] == {"up": 0, "down": 0, "total": 0}
+    assert feedback.summarize_feedback(records, recent_n=-1)["recent"] == {"up": 0, "down": 0, "total": 0}
+    assert feedback.summarize_feedback(records, recent_n=100)["recent"] == {"up": 1, "down": 1, "total": 2}
+
+
+def test_extract_down_records_empty_and_no_downs_and_zero_limit():
+    assert feedback.extract_down_records([]) == []
+    assert feedback.extract_down_records([{"rating": "up"}]) == []
+    assert feedback.extract_down_records([{"rating": "down"}], limit=0) == []
