@@ -41,7 +41,15 @@ import setup
 # （source_formatting.py）は app.py と api/main.py の両方から使う共通ロジックのため
 # 切り出している。テストが従来通り app._windowed_history 等の名前で参照できるよう、
 # "as 同名" で明示的に再エクスポートする（ruffのunused-import誤検知を防ぐ）。
-from feedback import RATING_DOWN, RATING_UP, get_recorded_rating, record_feedback
+from feedback import (
+    RATING_DOWN,
+    RATING_UP,
+    extract_down_records,
+    get_recorded_rating,
+    load_feedback_records,
+    record_feedback,
+    summarize_feedback,
+)
 from history_utils import _API_PROVIDER_HISTORY_TOKENS as _API_PROVIDER_HISTORY_TOKENS
 from history_utils import _FALLBACK_HISTORY_TOKENS as _FALLBACK_HISTORY_TOKENS
 from history_utils import _OLLAMA_CONTEXT_MARGIN_TOKENS as _OLLAMA_CONTEXT_MARGIN_TOKENS
@@ -686,6 +694,26 @@ def _render_copy_button(text: str) -> None:
     st_components.html(_copy_button_html(text), height=40)
 
 
+def _render_feedback_summary() -> None:
+    with st.expander("📊 フィードバックの振り返り", expanded=False):
+        records = load_feedback_records()
+        if not records:
+            st.caption("まだフィードバックがありません。回答の下の👍/👎で記録されます。")
+            return
+        summary = summarize_feedback(records)
+        st.caption(
+            f"全期間: 👍{summary['all']['up']}件 / 👎{summary['all']['down']}件\n\n"
+            f"直近{summary['recent']['total']}件: 👍{summary['recent']['up']}件 / 👎{summary['recent']['down']}件"
+        )
+        downs = extract_down_records(records)
+        if downs:
+            st.markdown("**👎が付いた質問・回答（新しい順）**")
+        for record in downs:
+            with st.expander(str(record.get("question", ""))[:40] or "（質問なし）"):
+                st.markdown(f"**質問**: {record.get('question', '')}")
+                st.markdown(f"**回答**: {record.get('answer', '')}")
+
+
 def _feedback_widget_key(index: int, suffix: str) -> str:
     """フィードバックボタンのwidget key（up/down押下時の一時状態）を組み立てる。"""
     return f"feedback_{st.session_state.thread_id}_{index}_{suffix}"
@@ -1082,6 +1110,7 @@ with st.sidebar:
 
     st.divider()
     st.subheader("📂 ドキュメント管理")
+    _render_feedback_summary()
     st.caption(
         "data/ フォルダの変更はページの操作（リロード・会話など）のたびに自動で検知され、"
         "裏側で自動的に内容が反映されます。"

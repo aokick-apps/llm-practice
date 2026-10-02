@@ -269,3 +269,42 @@ def test_deleting_earlier_turn_preserves_feedback_recorded_state_for_remaining_t
     assert any("フィードバックを記録しました" in c.value for c in at.caption)
     # indexのずれで再度ボタンが出て重複記録される回帰が無いことの確認。
     assert calls == [("質問2", "回答2", feedback.RATING_UP, "thread-test")]
+
+
+def _sidebar_summary_expander(at: AppTest):
+    return [e for e in at.sidebar.expander if "フィードバックの振り返り" in str(e.label)]
+
+
+def test_feedback_summary_expander_empty_state():
+    """境界値: 記録が無い場合も例外なくexpanderが描画され、案内文が表示される。"""
+    at = _run_app()
+
+    assert not at.exception
+    expanders = _sidebar_summary_expander(at)
+    assert len(expanders) == 1
+    assert any("まだフィードバックがありません" in c.value for c in expanders[0].caption)
+
+
+def test_feedback_summary_expander_shows_counts_and_down_records():
+    """正常系: 記録がある場合、件数と👎の質問・回答が表示される。"""
+    feedback.record_feedback("良い質問", "良い回答", feedback.RATING_UP, "t1")
+    feedback.record_feedback("悪い質問", "悪い回答", feedback.RATING_DOWN, "t1")
+
+    at = _run_app()
+
+    assert not at.exception
+    expander = _sidebar_summary_expander(at)[0]
+    assert any("👍1件 / 👎1件" in c.value for c in expander.caption)
+    body = " ".join(m.value for e in expander.expander for m in e.markdown)
+    assert "悪い質問" in body and "悪い回答" in body
+    assert "良い質問" not in body
+
+
+def test_feedback_summary_expander_survives_broken_file_and_empty_question():
+    """異常系: 壊れた行や質問が空の👎レコードがあっても例外なく描画される。"""
+    feedback.FEEDBACK_PATH.write_text('broken\n{"rating": "down", "question": "", "answer": "A"}\n', encoding="utf-8")
+
+    at = _run_app()
+
+    assert not at.exception
+    assert len(_sidebar_summary_expander(at)) == 1

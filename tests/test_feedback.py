@@ -199,3 +199,59 @@ def test_record_feedback_invalid_rating_rejected_even_if_duplicate(tmp_path, mon
 
     with pytest.raises(ValueError):
         feedback.record_feedback("Q", "A", "bad", "t")
+
+
+def test_load_feedback_records_skips_missing_file_and_broken_lines(tmp_path, monkeypatch):
+    path = tmp_path / "feedback.jsonl"
+    monkeypatch.setattr(feedback, "FEEDBACK_PATH", path)
+    assert feedback.load_feedback_records() == []
+
+    path.write_text(
+        '{"rating": "up", "question": "Q1"}\nnot json\n{"rating": "bad"}\n[1]\n{"rating": "down", "question": "Q2"}\n',
+        encoding="utf-8",
+    )
+
+    records = feedback.load_feedback_records()
+    assert [r["question"] for r in records] == ["Q1", "Q2"]
+
+
+def test_summarize_feedback_counts_all_and_recent():
+    records = [{"rating": "down"}, {"rating": "up"}, {"rating": "up"}, {"rating": "down"}]
+
+    summary = feedback.summarize_feedback(records, recent_n=2)
+
+    assert summary["all"] == {"up": 2, "down": 2, "total": 4}
+    assert summary["recent"] == {"up": 1, "down": 1, "total": 2}
+
+
+def test_summarize_feedback_empty():
+    summary = feedback.summarize_feedback([])
+
+    assert summary["all"] == {"up": 0, "down": 0, "total": 0}
+    assert summary["recent"] == {"up": 0, "down": 0, "total": 0}
+
+
+def test_extract_down_records_newest_first_with_limit():
+    records = [
+        {"rating": "down", "question": "Q1"},
+        {"rating": "up", "question": "Q2"},
+        {"rating": "down", "question": "Q3"},
+        {"rating": "down", "question": "Q4"},
+    ]
+
+    assert [r["question"] for r in feedback.extract_down_records(records)] == ["Q4", "Q3", "Q1"]
+    assert [r["question"] for r in feedback.extract_down_records(records, limit=2)] == ["Q4", "Q3"]
+
+
+def test_summarize_feedback_recent_n_boundaries():
+    records = [{"rating": "up"}, {"rating": "down"}]
+
+    assert feedback.summarize_feedback(records, recent_n=0)["recent"] == {"up": 0, "down": 0, "total": 0}
+    assert feedback.summarize_feedback(records, recent_n=-1)["recent"] == {"up": 0, "down": 0, "total": 0}
+    assert feedback.summarize_feedback(records, recent_n=100)["recent"] == {"up": 1, "down": 1, "total": 2}
+
+
+def test_extract_down_records_empty_and_no_downs_and_zero_limit():
+    assert feedback.extract_down_records([]) == []
+    assert feedback.extract_down_records([{"rating": "up"}]) == []
+    assert feedback.extract_down_records([{"rating": "down"}], limit=0) == []
