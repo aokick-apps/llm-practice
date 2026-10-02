@@ -60,3 +60,35 @@ def record_feedback(question: str, answer: str, rating: str, thread_id: str) -> 
     }
     with FEEDBACK_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def load_feedback_records() -> list[dict]:
+    """data/feedback.jsonl の全レコードを記録順に返す（ファイル無し・壊れた行は無視）。"""
+    if not FEEDBACK_PATH.exists():
+        return []
+    records = []
+    with FEEDBACK_PATH.open(encoding="utf-8") as f:
+        for line in f:
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(record, dict) and record.get("rating") in _VALID_RATINGS:
+                records.append(record)
+    return records
+
+
+def summarize_feedback(records: list[dict], recent_n: int = 20) -> dict[str, dict[str, int]]:
+    """全期間と直近recent_n件の👍/👎件数を {"all": {...}, "recent": {...}} で返す。"""
+
+    def count(rs: list[dict]) -> dict[str, int]:
+        up = sum(1 for r in rs if r["rating"] == RATING_UP)
+        return {"up": up, "down": len(rs) - up, "total": len(rs)}
+
+    return {"all": count(records), "recent": count(records[-recent_n:] if recent_n > 0 else [])}
+
+
+def extract_down_records(records: list[dict], limit: int = 20) -> list[dict]:
+    """👎のレコードを新しい順に最大limit件返す。"""
+    downs = [r for r in records if r["rating"] == RATING_DOWN]
+    return downs[::-1][:limit]
