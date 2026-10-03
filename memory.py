@@ -279,6 +279,14 @@ def _parse_created_at(path: Path) -> datetime:
         return datetime.fromtimestamp(path.stat().st_mtime)
 
 
+def _read_thread_title(thread_dir: Path) -> str | None:
+    title_path = thread_dir / THREAD_TITLE_FILENAME
+    if not title_path.is_file():
+        return None
+    content = _read_text_safe(title_path)
+    return content.strip() or None if content is not None else None
+
+
 def list_threads() -> list[dict]:
     """data/conversations/ 配下の会話スレッド一覧を、作成日時が新しい順に返す。
 
@@ -287,6 +295,7 @@ def list_threads() -> list[dict]:
     - created_at: 最初の会話ログのタイムスタンプ（datetime）
     - first_question: 最初の質問文（ラベル表示用の要約に使う）
     - count: そのスレッドに保存されている会話ログ件数
+    - title: 保存済みのスレッドタイトル（未設定ならNone）
 
     会話ログが1件も無い（空の）スレッドフォルダは一覧に含めない。
     """
@@ -308,6 +317,7 @@ def list_threads() -> list[dict]:
                 "created_at": _parse_created_at(first_file),
                 "first_question": _extract_question(content) if content is not None else "",
                 "count": len(files),
+                "title": _read_thread_title(thread_dir),
             }
         )
 

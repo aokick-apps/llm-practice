@@ -192,6 +192,49 @@ def test_list_threads_returns_metadata_for_single_thread(tmp_path, monkeypatch):
     assert thread["created_at"] == datetime(2024, 1, 1, 9, 0, 0)
     assert thread["first_question"] == "最初の質問です"
     assert thread["count"] == 1
+    assert thread["title"] is None
+
+
+def test_list_threads_includes_saved_title(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    _write_log(tmp_path, "thread-a", "20240101_090000_abc123_q.md")
+    _write_log(tmp_path, "thread-b", "20240102_090000_abc123_q.md")
+    memory.save_thread_title("thread-a", "経費精算")
+
+    titles = {t["thread_id"]: t["title"] for t in memory.list_threads()}
+
+    assert titles == {"thread-a": "経費精算", "thread-b": None}
+
+
+def test_list_threads_title_strips_whitespace_and_blank_is_none(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    _write_log(tmp_path, "thread-a", "20240101_090000_abc123_q.md")
+    _write_log(tmp_path, "thread-b", "20240102_090000_abc123_q.md")
+    (tmp_path / "thread-a" / memory.THREAD_TITLE_FILENAME).write_text("  タイトル \n", encoding="utf-8")
+    (tmp_path / "thread-b" / memory.THREAD_TITLE_FILENAME).write_text("   \n", encoding="utf-8")
+
+    titles = {t["thread_id"]: t["title"] for t in memory.list_threads()}
+
+    assert titles == {"thread-a": "タイトル", "thread-b": None}
+
+
+def test_list_threads_title_is_none_when_title_file_unreadable(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    _write_log(tmp_path, "thread-a", "20240101_090000_abc123_q.md")
+    (tmp_path / "thread-a" / memory.THREAD_TITLE_FILENAME).write_bytes(b"\xff\xfe\x00bad")
+
+    threads = memory.list_threads()
+
+    assert len(threads) == 1
+    assert threads[0]["title"] is None
+
+
+def test_list_threads_title_matches_load_thread_title(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    _write_log(tmp_path, "thread-a", "20240101_090000_abc123_q.md")
+    memory.save_thread_title("thread-a", "一致確認")
+
+    assert memory.list_threads()[0]["title"] == memory.load_thread_title("thread-a")
 
 
 def test_list_threads_count_reflects_number_of_files(tmp_path, monkeypatch):
