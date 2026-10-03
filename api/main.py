@@ -433,11 +433,9 @@ class ThreadsResponse(BaseModel):
 def get_threads() -> dict:
     """保存済みの会話スレッド一覧を、作成日時が新しい順に返す（memory.list_threads()のラッパー）。
 
-    titleはスレッドごとにmemory.load_thread_title()を呼んで補い、フロントエンドが
-    一覧表示のたびに個別リクエストしなくても済むようにする。
+    titleもlist_threads()が一括で返すため、スレッドごとの追加読み込みは行わない。
     """
-    threads = list_threads()
-    return {"threads": [{**thread, "title": load_thread_title(thread["thread_id"])} for thread in threads]}
+    return {"threads": list_threads()}
 
 
 class ConversationSource(BaseModel):

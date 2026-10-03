@@ -192,6 +192,18 @@ def test_list_threads_returns_metadata_for_single_thread(tmp_path, monkeypatch):
     assert thread["created_at"] == datetime(2024, 1, 1, 9, 0, 0)
     assert thread["first_question"] == "最初の質問です"
     assert thread["count"] == 1
+    assert thread["title"] is None
+
+
+def test_list_threads_includes_saved_title(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    _write_log(tmp_path, "thread-a", "20240101_090000_abc123_q.md")
+    _write_log(tmp_path, "thread-b", "20240102_090000_abc123_q.md")
+    memory.save_thread_title("thread-a", "経費精算")
+
+    titles = {t["thread_id"]: t["title"] for t in memory.list_threads()}
+
+    assert titles == {"thread-a": "経費精算", "thread-b": None}
 
 
 def test_list_threads_count_reflects_number_of_files(tmp_path, monkeypatch):

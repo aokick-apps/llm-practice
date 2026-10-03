@@ -1280,10 +1280,10 @@ def test_get_threads_returns_list_with_title(client, monkeypatch):
             "created_at": "2026-01-01T00:00:00",
             "first_question": "経費精算について",
             "count": 3,
+            "title": "経費精算スレッド",
         }
     ]
     monkeypatch.setattr(api_main, "list_threads", lambda: fake_threads)
-    monkeypatch.setattr(api_main, "load_thread_title", lambda thread_id: "経費精算スレッド")
 
     response = client.get("/api/conversations")
 
@@ -1303,10 +1303,15 @@ def test_get_threads_returns_list_with_title(client, monkeypatch):
 
 def test_get_threads_title_is_none_when_not_set(client, monkeypatch):
     fake_threads = [
-        {"thread_id": "thread-a", "created_at": "2026-01-01T00:00:00", "first_question": "質問", "count": 1}
+        {
+            "thread_id": "thread-a",
+            "created_at": "2026-01-01T00:00:00",
+            "first_question": "質問",
+            "count": 1,
+            "title": None,
+        }
     ]
     monkeypatch.setattr(api_main, "list_threads", lambda: fake_threads)
-    monkeypatch.setattr(api_main, "load_thread_title", lambda thread_id: None)
 
     response = client.get("/api/conversations")
 
