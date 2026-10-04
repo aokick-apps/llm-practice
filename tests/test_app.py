@@ -4297,6 +4297,33 @@ def test_build_agent_safely_passes_citation_numbers_from_displayed_messages(monk
     assert captured["initial_citation_numbers"] == {source_dedupe_key(doc): 7}
 
 
+def test_build_agent_safely_passes_empty_citation_numbers_when_no_messages(monkeypatch):
+    """境界値: messagesが空、またはsources無しのメッセージのみなら空辞書を渡すこと。"""
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    import app
+
+    captured = {}
+
+    def fake_build_agent(thread_id, **kwargs):
+        captured.update(kwargs)
+        return _FakeAgent()
+
+    monkeypatch.setattr(app, "build_agent", fake_build_agent)
+
+    monkeypatch.setitem(app.st.session_state, "messages", [])
+    app._build_agent_safely("thread-x")
+    assert captured["initial_citation_numbers"] == {}
+
+    monkeypatch.setitem(
+        app.st.session_state,
+        "messages",
+        [HumanMessage(content="質問"), AIMessage(content="回答", additional_kwargs={"sources": None})],
+    )
+    app._build_agent_safely("thread-x")
+    assert captured["initial_citation_numbers"] == {}
+
+
 def test_build_agent_safely_returns_none_and_does_not_raise_on_failure(monkeypatch):
     """異常系: build_agent()が例外を送出した場合、_build_agent_safely()は例外を
     そのまま送出せずNoneを返す（st.error呼び出しの有無はAppTest経由のテストで確認する）。"""
