@@ -80,7 +80,7 @@ from memory import (
     save_conversation,
     save_thread_title,
 )
-from rag_chain import build_agent, source_dedupe_key
+from rag_chain import build_agent, restore_citation_numbers, source_dedupe_key
 from source_formatting import format_relevance_tier as _format_relevance_tier
 from source_formatting import format_snippet as _format_snippet
 from source_formatting import format_source_label as _format_source_label
@@ -327,11 +327,18 @@ def _search_source_holder() -> list[str]:
 
 def _build_agent_safely(thread_id: str):
     """build_agent()を例外から保護する共通ヘルパー。失敗時はアプリを落とさずNoneを返す。"""
+    # 画面に残る過去ログの引用番号と重複しないよう、表示中のmessagesから番号を引き継ぐ
+    past_sources = [
+        doc
+        for message in st.session_state.get("messages", [])
+        for doc in message.additional_kwargs.get("sources") or []
+    ]
     try:
         return build_agent(
             thread_id,
             chat_model=st.session_state.get("chat_model"),
             source_filter=_search_source_holder().copy,
+            initial_citation_numbers=restore_citation_numbers(past_sources),
         )
     except Exception as e:
         st.error(f"アシスタントの初期化に失敗しました。時間をおいて再度お試しください。（詳細: {e}）")

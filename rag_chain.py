@@ -212,7 +212,22 @@ def _grade_relevance(query: str, docs: list, chat_model=None) -> list[int]:
     return sorted({int(n) - 1 for n in re.findall(r"\d+", answer_line) if 0 < int(n) <= len(docs)})
 
 
-def build_agent(thread_id: str = GLOBAL_THREAD_ID, chat_model=None, source_filter=None):
+def restore_citation_numbers(sources: list) -> dict[tuple, int]:
+    """過去の参照元（citation_number付き）から、文書→引用番号の対応を復元する。"""
+    restored: dict[tuple, int] = {}
+    for doc in sources:
+        number = doc.metadata.get("citation_number")
+        if isinstance(number, int):
+            restored.setdefault(source_dedupe_key(doc), number)
+    return restored
+
+
+def build_agent(
+    thread_id: str = GLOBAL_THREAD_ID,
+    chat_model=None,
+    source_filter=None,
+    initial_citation_numbers: dict[tuple, int] | None = None,
+):
     """検索ツール付きのRAGエージェントを構築して返す。
 
     thread_id を指定すると、検索対象は共通ナレッジ（thread_id="global"）と
@@ -225,6 +240,9 @@ def build_agent(thread_id: str = GLOBAL_THREAD_ID, chat_model=None, source_filte
     source_filter は検索のたびに呼ばれ、検索対象にするsourceメタデータのリストを返す
     （None・空リストなら全件対象）。エージェントを作り直さずに絞り込みを切り替えるために
     値ではなく呼び出し可能オブジェクトで受け取る。
+
+    initial_citation_numbers は、エージェント再構築時に過去の引用番号（restore_citation_numbers）を
+    引き継ぐための初期値。以降の新しい番号は既存の最大値の次から振られ、重複しない。
 
     使い方:
         agent = build_agent(thread_id="abc123")
@@ -239,7 +257,8 @@ def build_agent(thread_id: str = GLOBAL_THREAD_ID, chat_model=None, source_filte
     # 振り直すとLLMが本文に書く引用番号とapp.py側の参照元一覧の番号がずれてしまう。
     # このエージェント（=会話スレッド）が生きている間、同じ文書には常に同じ番号を
     # 再利用する（トレードオフとして、ターンが進むほど番号は大きくなり続ける）。
-    citation_numbers: dict[tuple, int] = {}
+    citation_numbers: dict[tuple, int] = dict(initial_citation_numbers or {})
+    next_citation_number = max(citation_numbers.values(), default=0) + 1
 
     @tool(response_format="content_and_artifact")
     def retrieve_context(query: str):
@@ -281,10 +300,12 @@ def build_agent(thread_id: str = GLOBAL_THREAD_ID, chat_model=None, source_filte
         if not retrieved_docs:
             return "関連する情報はドキュメント内に見つかりませんでした。", []
 
+        nonlocal next_citation_number
         for doc in retrieved_docs:
             key = source_dedupe_key(doc)
             if key not in citation_numbers:
-                citation_numbers[key] = len(citation_numbers) + 1
+                citation_numbers[key] = next_citation_number
+                next_citation_number += 1
             doc.metadata["citation_number"] = citation_numbers[key]
 
         # 先頭の[N]はcitation_numbersで管理する永続的な番号で、LLMが回答本文に付ける引用番号の
