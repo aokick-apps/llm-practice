@@ -751,6 +751,34 @@ def test_retrieve_context_assigns_sequential_citation_numbers_across_calls(monke
     assert "[2] Source:" in content2
 
 
+def test_restore_citation_numbers_maps_docs_to_past_numbers():
+    """正常系: citation_number付きの過去sourcesから文書→番号の対応を復元し、番号なしは無視すること。"""
+    doc_a = _FakeDocument("Aの内容", {"source": "a.txt", "citation_number": 3})
+    doc_no_number = _FakeDocument("Bの内容", {"source": "b.txt"})
+
+    restored = rag_chain.restore_citation_numbers([doc_a, doc_no_number])
+
+    assert restored == {rag_chain.source_dedupe_key(doc_a): 3}
+
+
+def test_retrieve_context_continues_numbering_from_initial_citation_numbers(monkeypatch):
+    """正常系: 引き継いだ番号の文書は同じ番号を再利用し、新しい文書は最大値の次から振られること。"""
+    old_doc = _FakeDocument("旧文書", {"source": "a.txt"})
+    new_doc = _FakeDocument("新文書", {"source": "b.txt"})
+    store = _FakeVectorStore(results=[(old_doc, 0.1), (new_doc, 0.2)])
+    monkeypatch.setattr(rag_chain, "get_vectorstore", lambda: store)
+    agent = rag_chain.build_agent(
+        thread_id="thread-1",
+        initial_citation_numbers={rag_chain.source_dedupe_key(old_doc): 4},
+    )
+    monkeypatch.setattr(rag_chain, "_grade_relevance", lambda query, docs, *_args: [0, 1])
+
+    _, artifact = agent.tools[0].func("質問")
+
+    assert artifact[0].metadata["citation_number"] == 4
+    assert artifact[1].metadata["citation_number"] == 5
+
+
 def test_retrieve_context_content_does_not_leak_citation_number(monkeypatch):
     """citation_numberは先頭の[N]で既に示しているため、Source:内のメタデータ辞書
     表示には重複して含めないこと。"""

@@ -4273,6 +4273,30 @@ def test_build_agent_safely_returns_agent_on_success(monkeypatch):
     assert result is fake_agent
 
 
+def test_build_agent_safely_passes_citation_numbers_from_displayed_messages(monkeypatch):
+    """正常系: 表示中のmessagesのsourcesから復元した引用番号を新エージェントへ引き継ぐこと。"""
+    from langchain_core.messages import AIMessage
+
+    import app
+    from rag_chain import source_dedupe_key
+
+    doc = _FakeSourceDoc(page_content="Aの内容", metadata={"source": "a.txt", "citation_number": 7})
+    monkeypatch.setitem(
+        app.st.session_state, "messages", [AIMessage(content="回答", additional_kwargs={"sources": [doc]})]
+    )
+    captured = {}
+
+    def fake_build_agent(thread_id, **kwargs):
+        captured.update(kwargs)
+        return _FakeAgent()
+
+    monkeypatch.setattr(app, "build_agent", fake_build_agent)
+
+    app._build_agent_safely("thread-x")
+
+    assert captured["initial_citation_numbers"] == {source_dedupe_key(doc): 7}
+
+
 def test_build_agent_safely_returns_none_and_does_not_raise_on_failure(monkeypatch):
     """異常系: build_agent()が例外を送出した場合、_build_agent_safely()は例外を
     そのまま送出せずNoneを返す（st.error呼び出しの有無はAppTest経由のテストで確認する）。"""
@@ -6168,7 +6192,7 @@ def test_search_target_checkbox_passes_selected_sources_to_agent_filter(monkeypa
     )
     captured = {}
 
-    def fake_build_agent(thread_id=None, chat_model=None, source_filter=None):
+    def fake_build_agent(thread_id=None, chat_model=None, source_filter=None, **_):
         captured["source_filter"] = source_filter
         return _FakeAgent()
 
@@ -6193,7 +6217,7 @@ def test_search_target_checkbox_supports_multiple_selection_and_uncheck(monkeypa
     )
     captured = {}
 
-    def fake_build_agent(thread_id=None, chat_model=None, source_filter=None):
+    def fake_build_agent(thread_id=None, chat_model=None, source_filter=None, **_):
         captured["source_filter"] = source_filter
         return _FakeAgent()
 
@@ -6215,7 +6239,7 @@ def test_search_target_filter_is_empty_when_no_indexed_files(monkeypatch):
     monkeypatch.setattr(ingest, "list_indexed_files", lambda: [])
     captured = {}
 
-    def fake_build_agent(thread_id=None, chat_model=None, source_filter=None):
+    def fake_build_agent(thread_id=None, chat_model=None, source_filter=None, **_):
         captured["source_filter"] = source_filter
         return _FakeAgent()
 
