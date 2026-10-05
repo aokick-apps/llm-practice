@@ -70,6 +70,7 @@ from ingest import (
     upload_lock,
 )
 from memory import (
+    auto_generate_thread_title,
     conversation_count,
     delete_conversation,
     delete_thread,
@@ -1353,6 +1354,13 @@ if question:
                     question, answer, st.session_state.thread_id, is_fallback=not sources, sources=sources
                 )
                 log_filename = saved_path.name
+                try:
+                    auto_generate_thread_title(
+                        st.session_state.thread_id, question, answer, st.session_state.get("chat_model")
+                    )
+                except Exception:
+                    # タイトル生成は付随機能のため、失敗しても回答表示・保存を妨げない。
+                    pass
             elif regenerating:
                 # 再生成時は保存し直さないため、削除ボタンは元のターンのファイル
                 # （まだ再生成前の回答のまま）と紐付けて表示を継続する。

@@ -385,6 +385,44 @@ def load_thread_title(thread_id: str) -> str | None:
     return content.strip() or None
 
 
+# 自動生成タイトルの最大文字数（一覧で読みやすい長さに収めるため）。
+_AUTO_TITLE_MAX_LENGTH = 30
+
+
+def generate_thread_title(question: str, answer: str, chat_model) -> str | None:
+    """チャットモデルに最初の質問・回答から簡潔なタイトルを生成させる。失敗・空応答はNoneを返す。"""
+    prompt = (
+        "次の質問と回答のやり取りの内容を表す、簡潔な日本語のタイトルを1行だけ出力してください。"
+        f"{_AUTO_TITLE_MAX_LENGTH}文字以内で、記号での装飾・引用符・説明文は付けないでください。\n\n"
+        f"質問: {question[:500]}\n\n回答: {answer[:500]}"
+    )
+    try:
+        text = chat_model.invoke(prompt).content
+    except Exception:
+        logger.warning("スレッドタイトルの自動生成に失敗しました", exc_info=True)
+        return None
+    if not isinstance(text, str):
+        return None
+    first_line = next((line.strip() for line in text.splitlines() if line.strip()), "")
+    title = first_line.strip("「」『』\"'# ")
+    return title[:_AUTO_TITLE_MAX_LENGTH] or None
+
+
+def auto_generate_thread_title(thread_id: str, question: str, answer: str, chat_model) -> bool:
+    """スレッドの最初の1往復の保存直後に、タイトル未設定の場合のみ自動生成して保存する。
+
+    2往復目以降や、手動設定済みのタイトルがある場合は何もしない（上書き防止）。
+    生成失敗時はタイトル未設定のまま残り、一覧は自動生成ラベルにフォールバックする。
+    """
+    if conversation_count(thread_id) != 1 or load_thread_title(thread_id) is not None:
+        return False
+    title = generate_thread_title(question, answer, chat_model)
+    if title is None:
+        return False
+    save_thread_title(thread_id, title)
+    return True
+
+
 def delete_thread(thread_id: str) -> bool:
     """スレッドの会話ログ一式（data/conversations/<thread_id>/ 配下）を削除する。
 
