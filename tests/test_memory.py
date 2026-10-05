@@ -1584,3 +1584,48 @@ def test_auto_generate_thread_title_leaves_title_unset_on_failure(tmp_path, monk
     assert memory.auto_generate_thread_title("thread-a", "質問", "回答", _FakeChatModel(error=RuntimeError())) is False
 
     assert memory.load_thread_title("thread-a") is None
+
+
+def test_generate_thread_title_boundary_length_is_kept():
+    model = _FakeChatModel(content="あ" * memory._AUTO_TITLE_MAX_LENGTH)
+
+    assert memory.generate_thread_title("質問", "回答", model) == "あ" * memory._AUTO_TITLE_MAX_LENGTH
+
+
+def test_generate_thread_title_returns_none_for_non_string_content():
+    model = _FakeChatModel(content=[{"type": "text", "text": "タイトル"}])
+
+    assert memory.generate_thread_title("質問", "回答", model) is None
+
+
+def test_generate_thread_title_returns_none_when_only_decoration():
+    assert memory.generate_thread_title("質問", "回答", _FakeChatModel(content="「」")) is None
+
+
+def test_generate_thread_title_skips_leading_blank_lines_and_strips_heading_mark():
+    model = _FakeChatModel(content="\n\n# 見出しタイトル\n本文")
+
+    assert memory.generate_thread_title("質問", "回答", model) == "見出しタイトル"
+
+
+def test_generate_thread_title_truncates_long_inputs_in_prompt():
+    prompts = []
+
+    class _Model:
+        def invoke(self, prompt):
+            prompts.append(prompt)
+            return type("R", (), {"content": "題"})()
+
+    memory.generate_thread_title("Q" * 5000, "A" * 5000, _Model())
+
+    assert prompts[0].count("Q") <= 500 + 1
+    assert prompts[0].count("A") <= 500 + 1
+
+
+def test_auto_generate_thread_title_skips_when_no_conversation(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    model = _FakeChatModel()
+
+    assert memory.auto_generate_thread_title("thread-empty", "質問", "回答", model) is False
+
+    assert model.calls == 0
