@@ -201,6 +201,7 @@ def _patch_light_dependencies(monkeypatch):
     monkeypatch.setattr(memory, "load_conversation", lambda thread_id: [])
     monkeypatch.setattr(memory, "load_thread_title", lambda thread_id: None)
     monkeypatch.setattr(memory, "save_thread_title", lambda thread_id, title: None)
+    monkeypatch.setattr(memory, "auto_generate_thread_title", lambda *a, **k: False)
     monkeypatch.setattr(memory, "delete_thread", lambda thread_id: True)
     monkeypatch.setattr(memory, "delete_conversation", lambda thread_id, filename: True)
     monkeypatch.setattr(feedback, "record_feedback", lambda *a, **k: None)
@@ -6275,3 +6276,37 @@ def test_search_target_filter_is_empty_when_no_indexed_files(monkeypatch):
     at = _run_app()
     assert at.exception == []
     assert captured["source_filter"]() == []
+
+
+def test_auto_thread_title_generated_after_saving_conversation(monkeypatch):
+    """正常系: 会話保存後に現在のスレッドIDと質問・回答でタイトル自動生成が呼ばれる。"""
+    monkeypatch.setattr(
+        rag_chain, "build_agent", lambda thread_id=None, chat_model=None, **_: _FakeAgent(answer="回答")
+    )
+    calls = []
+    monkeypatch.setattr(memory, "auto_generate_thread_title", lambda *a, **k: calls.append(a) or True)
+
+    at = _run_app()
+    at = at.chat_input[0].set_value("質問です").run()
+
+    assert at.exception == []
+    assert len(calls) == 1
+    assert calls[0][:3] == ("thread-test", "質問です", "回答")
+
+
+def test_auto_thread_title_failure_does_not_break_chat(monkeypatch):
+    """異常系: タイトル自動生成が例外を投げても回答は表示・保存される。"""
+    monkeypatch.setattr(
+        rag_chain, "build_agent", lambda thread_id=None, chat_model=None, **_: _FakeAgent(answer="回答")
+    )
+
+    def _raise(*a, **k):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(memory, "auto_generate_thread_title", _raise)
+
+    at = _run_app()
+    at = at.chat_input[0].set_value("質問です").run()
+
+    assert at.exception == []
+    assert len(at.error) == 0

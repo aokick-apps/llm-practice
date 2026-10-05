@@ -1505,3 +1505,82 @@ class TestDeleteConversation:
 
         conversations = memory.load_conversation("thread-a")
         assert [c["question"] for c in conversations] == ["Q2"]
+
+
+class _FakeChatModel:
+    def __init__(self, content="経費精算の方法", error=None):
+        self.content = content
+        self.error = error
+        self.calls = 0
+
+    def invoke(self, prompt):
+        self.calls += 1
+        if self.error:
+            raise self.error
+
+        class _Resp:
+            pass
+
+        resp = _Resp()
+        resp.content = self.content
+        return resp
+
+
+def test_generate_thread_title_returns_cleaned_first_line():
+    model = _FakeChatModel(content="「経費精算の方法」\n補足説明")
+
+    assert memory.generate_thread_title("質問", "回答", model) == "経費精算の方法"
+
+
+def test_generate_thread_title_truncates_long_title():
+    model = _FakeChatModel(content="あ" * 100)
+
+    assert len(memory.generate_thread_title("質問", "回答", model)) == memory._AUTO_TITLE_MAX_LENGTH
+
+
+def test_generate_thread_title_returns_none_on_error_or_empty():
+    assert memory.generate_thread_title("q", "a", _FakeChatModel(error=RuntimeError("boom"))) is None
+    assert memory.generate_thread_title("q", "a", _FakeChatModel(content="  \n ")) is None
+
+
+def test_auto_generate_thread_title_saves_title_after_first_turn(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    memory.save_conversation("質問", "回答", "thread-a")
+    model = _FakeChatModel()
+
+    assert memory.auto_generate_thread_title("thread-a", "質問", "回答", model) is True
+
+    assert memory.load_thread_title("thread-a") == "経費精算の方法"
+
+
+def test_auto_generate_thread_title_does_not_overwrite_manual_title(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    memory.save_conversation("質問", "回答", "thread-a")
+    memory.save_thread_title("thread-a", "手動タイトル")
+    model = _FakeChatModel()
+
+    assert memory.auto_generate_thread_title("thread-a", "質問", "回答", model) is False
+
+    assert memory.load_thread_title("thread-a") == "手動タイトル"
+    assert model.calls == 0
+
+
+def test_auto_generate_thread_title_skips_after_first_turn(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    memory.save_conversation("質問1", "回答1", "thread-a")
+    memory.save_conversation("質問2", "回答2", "thread-a")
+    model = _FakeChatModel()
+
+    assert memory.auto_generate_thread_title("thread-a", "質問2", "回答2", model) is False
+
+    assert model.calls == 0
+    assert memory.load_thread_title("thread-a") is None
+
+
+def test_auto_generate_thread_title_leaves_title_unset_on_failure(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    memory.save_conversation("質問", "回答", "thread-a")
+
+    assert memory.auto_generate_thread_title("thread-a", "質問", "回答", _FakeChatModel(error=RuntimeError())) is False
+
+    assert memory.load_thread_title("thread-a") is None
