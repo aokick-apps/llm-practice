@@ -81,7 +81,7 @@ def test_copy_button_html_has_fallback_and_failure_notice(app_module):
 
     assert "navigator.clipboard && navigator.clipboard.writeText" in html
     assert 'document.execCommand("copy")' in html
-    assert ".catch(fallback)" in html
+    assert ".then(onSuccess, fallback)" in html
     assert "コピーに失敗しました" in html
 
 

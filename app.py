@@ -716,7 +716,7 @@ def _copy_button_html(text: str) -> str:
                     }}
                 }};
                 if (navigator.clipboard && navigator.clipboard.writeText) {{
-                    navigator.clipboard.writeText(text).then(onSuccess).catch(fallback);
+                    navigator.clipboard.writeText(text).then(onSuccess, fallback);
                 }} else {{
                     fallback();
                 }}
