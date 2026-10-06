@@ -75,6 +75,16 @@ def test_copy_button_html_embeds_json_dumps_encoded_text(app_module):
     assert '<button onclick="copyAnswer(this)">📋 回答をコピー</button>' in html
 
 
+def test_copy_button_html_has_fallback_and_failure_notice(app_module):
+    """clipboard未対応・reject時のexecCommandフォールバックと失敗通知を含む。"""
+    html = app_module._copy_button_html("テキスト")
+
+    assert "navigator.clipboard && navigator.clipboard.writeText" in html
+    assert 'document.execCommand("copy")' in html
+    assert ".catch(fallback)" in html
+    assert "コピーに失敗しました" in html
+
+
 def test_copy_button_html_escapes_double_quotes(app_module):
     """異常系: ダブルクォートを含むテキストでも、JS文字列リテラルとして安全にエスケープされる。"""
     text = 'ダブルクォート"を含む回答'

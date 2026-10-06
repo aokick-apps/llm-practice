@@ -685,13 +685,41 @@ def _copy_button_html(text: str) -> str:
         </style>
         <button onclick="copyAnswer(this)">📋 回答をコピー</button>
         <script>
+            function showLabel(button, label) {{
+                const original = button.dataset.original || button.innerText;
+                button.dataset.original = original;
+                button.innerText = label;
+                setTimeout(() => {{ button.innerText = original; }}, 1500);
+            }}
+            function fallbackCopy(text) {{
+                const textarea = document.createElement("textarea");
+                textarea.value = text;
+                textarea.style.position = "fixed";
+                textarea.style.opacity = "0";
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {{
+                    return document.execCommand("copy");
+                }} finally {{
+                    document.body.removeChild(textarea);
+                }}
+            }}
             function copyAnswer(button) {{
                 const text = {encoded_text};
-                navigator.clipboard.writeText(text).then(() => {{
-                    const original = button.innerText;
-                    button.innerText = "✅ コピーしました";
-                    setTimeout(() => {{ button.innerText = original; }}, 1500);
-                }});
+                const onSuccess = () => showLabel(button, "✅ コピーしました");
+                const onFailure = () => showLabel(button, "⚠️ コピーに失敗しました");
+                const fallback = () => {{
+                    try {{
+                        fallbackCopy(text) ? onSuccess() : onFailure();
+                    }} catch (e) {{
+                        onFailure();
+                    }}
+                }};
+                if (navigator.clipboard && navigator.clipboard.writeText) {{
+                    navigator.clipboard.writeText(text).then(onSuccess).catch(fallback);
+                }} else {{
+                    fallback();
+                }}
             }}
         </script>
         """
