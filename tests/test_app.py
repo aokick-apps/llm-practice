@@ -897,7 +897,7 @@ def test_windowed_history_uses_fallback_budget_when_provider_is_none(monkeypatch
     assert any(f"質問{7}" in m.content for m in windowed)
 
 
-# --- 1d. 会話履歴表示画面でのウィンドウイング発生通知（Issue #233） ---
+# --- 1d. 会話履歴表示画面でのウィンドウイング発生通知 ---
 
 
 def test_history_windowing_notice_hidden_when_under_budget(monkeypatch):
@@ -3430,7 +3430,7 @@ def test_start_new_chat_resets_thread_selector_and_does_not_pull_back_to_old_thr
     assert at.session_state["messages"] == []
 
 
-# --- 9b. サイドバーの過去スレッド削除機能（Issue #139） ---
+# --- 9b. サイドバーの過去スレッド削除機能 ---
 
 
 def test_thread_delete_button_hidden_when_current_thread_has_no_saved_conversation():
@@ -3768,7 +3768,7 @@ def test_cancel_delete_does_not_call_delete_indexed_file(monkeypatch):
     assert at.sidebar.warning == []
 
 
-# --- 10a. サイドバーのインデックス済みファイル一覧・一括削除機能（Issue #226） ---
+# --- 10a. サイドバーのインデックス済みファイル一覧・一括削除機能 ---
 
 
 def _checkbox(at: AppTest, name: str):
@@ -4019,7 +4019,7 @@ def test_opening_individual_delete_confirm_closes_bulk_delete_confirm(monkeypatc
     assert len(at.sidebar.warning) == 1
 
 
-# --- 10b. サイドバーのインデックス済みファイル一覧・ダウンロード機能（Issue #209） ---
+# --- 10b. サイドバーのインデックス済みファイル一覧・ダウンロード機能 ---
 
 
 def _capture_download_button_media(monkeypatch):
@@ -5739,7 +5739,7 @@ def test_deleting_earlier_turn_removes_only_that_pair_and_keeps_others(monkeypat
     assert [m.content for m in messages] == ["質問2", "回答2"]
 
 
-# --- 12. モデル切替UI（_render_model_switcher、Issue #236） ---
+# --- 12. モデル切替UI（_render_model_switcher） ---
 #
 # 入力欄直上のポップオーバーからOllama/外部API接続済みモデルを切り替えられる機能。
 # setup.list_available_models() が返す一覧をそのままselectboxの選択肢にするため、
