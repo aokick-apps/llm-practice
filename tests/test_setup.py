@@ -654,7 +654,7 @@ def test_current_model_label_shows_none_literal_when_model_name_is_none(monkeypa
     assert setup.current_model_label() == "Ollama (None)"
 
 
-# --- list_available_models()（モデル切替UIの選択肢一覧、Issue #236） ---
+# --- list_available_models()（モデル切替UIの選択肢一覧） ---
 
 
 def _patch_ollama_names(monkeypatch, names):
@@ -827,7 +827,7 @@ def test_build_chat_model_returns_init_chat_model_result(monkeypatch):
     assert setup.build_chat_model("ollama", "llama3.1") is sentinel
 
 
-# --- model_label() / PROVIDER_LABELS（表示ラベルの整形、Issue #236） ---
+# --- model_label() / PROVIDER_LABELS（表示ラベルの整形） ---
 
 
 def test_provider_labels_constant_has_expected_entries():
