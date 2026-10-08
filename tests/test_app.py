@@ -6310,3 +6310,12 @@ def test_auto_thread_title_failure_does_not_break_chat(monkeypatch):
 
     assert at.exception == []
     assert len(at.error) == 0
+
+
+def test_file_uploader_type_matches_supported_extensions():
+    """正常系: st.file_uploaderの許可拡張子はingest.SUPPORTED_EXTENSIONSから"."を除いた値と一致する。"""
+    at = _run_app()
+
+    assert at.exception == []
+    # Streamlitはプロトコル上、拡張子を"."付きに正規化して保持する
+    assert list(at.file_uploader[0].proto.type) == list(ingest.SUPPORTED_EXTENSIONS)
