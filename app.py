@@ -58,6 +58,7 @@ from history_utils import _history_token_budget as _history_token_budget
 from history_utils import _windowed_history as _windowed_history
 from ingest import (
     DATA_DIR,
+    SUPPORTED_EXTENSIONS,
     add_single_conversation_file,
     check_embedding_model_mismatch,
     data_dir_signature,
@@ -1165,7 +1166,7 @@ with st.sidebar:
     st.caption("ファイルをアップロードすると自動で保存され、内容が反映されます。")
     uploaded_files = st.file_uploader(
         "ファイルを追加",
-        type=["pdf", "txt", "md", "docx", "csv", "xlsx", "xls", "pptx", "html", "htm"],
+        type=[ext.lstrip(".") for ext in SUPPORTED_EXTENSIONS],
         accept_multiple_files=True,
         label_visibility="collapsed",
     )
