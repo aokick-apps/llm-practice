@@ -288,7 +288,7 @@ def _read_thread_title(thread_dir: Path) -> str | None:
 
 
 def list_threads() -> list[dict]:
-    """data/conversations/ 配下の会話スレッド一覧を、作成日時が新しい順に返す。
+    """data/conversations/ 配下の会話スレッド一覧を、最終更新日時（最新の会話ログ）が新しい順に返す。
 
     サイドバーでの過去スレッド選択UIに使う。各要素は以下のキーを持つ:
     - thread_id: スレッドID
@@ -303,6 +303,7 @@ def list_threads() -> list[dict]:
         return []
 
     threads = []
+    updated_ats = []
     for thread_dir in CONVERSATIONS_DIR.iterdir():
         if not thread_dir.is_dir():
             continue
@@ -310,6 +311,7 @@ def list_threads() -> list[dict]:
         if not files:
             continue
         first_file = files[0]
+        updated_at = _parse_created_at(files[-1])
         content = _read_text_safe(first_file)
         threads.append(
             {
@@ -320,9 +322,10 @@ def list_threads() -> list[dict]:
                 "title": _read_thread_title(thread_dir),
             }
         )
+        updated_ats.append(updated_at)
 
-    threads.sort(key=lambda t: t["created_at"], reverse=True)
-    return threads
+    order = sorted(range(len(threads)), key=lambda i: updated_ats[i], reverse=True)
+    return [threads[i] for i in order]
 
 
 def load_conversation(thread_id: str) -> list[dict]:

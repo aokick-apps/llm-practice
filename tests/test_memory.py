@@ -272,6 +272,49 @@ def test_list_threads_sorts_multiple_threads_newest_first(tmp_path, monkeypatch)
     assert [t["thread_id"] for t in threads] == ["thread-new", "thread-mid", "thread-old"]
 
 
+def test_list_threads_sorts_by_latest_conversation_not_creation(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    _write_log(tmp_path, "thread-old-revived", "20240101_090000_aaa111_q.md")
+    _write_log(tmp_path, "thread-old-revived", "20240301_090000_bbb222_q.md")
+    _write_log(tmp_path, "thread-newer", "20240201_090000_ccc333_q.md")
+
+    threads = memory.list_threads()
+
+    assert [t["thread_id"] for t in threads] == ["thread-old-revived", "thread-newer"]
+    assert threads[0]["created_at"] == datetime(2024, 1, 1, 9, 0, 0)
+    assert "_updated_at" not in threads[0]
+
+
+def test_list_threads_single_log_thread_uses_its_own_timestamp_for_ordering(tmp_path, monkeypatch):
+    """境界値: ログが1件のみのスレッドは作成日時=最終更新日時として他スレッドと比較される。"""
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    _write_log(tmp_path, "thread-single", "20240201_090000_aaa111_q.md")
+    _write_log(tmp_path, "thread-multi", "20240101_090000_bbb222_q.md")
+    _write_log(tmp_path, "thread-multi", "20240115_090000_ccc333_q.md")
+
+    threads = memory.list_threads()
+
+    assert [t["thread_id"] for t in threads] == ["thread-single", "thread-multi"]
+    assert threads[1]["count"] == 2
+
+
+def test_list_threads_same_latest_timestamp_keeps_all_threads(tmp_path, monkeypatch):
+    """境界値: 最終更新日時が同一でもスレッドが欠落・重複しない。"""
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    _write_log(tmp_path, "thread-a", "20240101_090000_aaa111_q.md")
+    _write_log(tmp_path, "thread-b", "20240102_090000_bbb222_q.md")
+    _write_log(tmp_path, "thread-a", "20240301_090000_ccc333_q.md")
+    _write_log(tmp_path, "thread-b", "20240301_090000_ddd444_q.md")
+
+    threads = memory.list_threads()
+
+    assert sorted(t["thread_id"] for t in threads) == ["thread-a", "thread-b"]
+    assert {t["thread_id"]: t["created_at"] for t in threads} == {
+        "thread-a": datetime(2024, 1, 1, 9, 0, 0),
+        "thread-b": datetime(2024, 1, 2, 9, 0, 0),
+    }
+
+
 def test_list_threads_created_at_falls_back_to_mtime_for_unparseable_filename(tmp_path, monkeypatch):
     """異常系境界値: ファイル名がsave_conversationの命名規則（先頭15文字が日時）と一致しない場合、
     strptimeが失敗しファイルのmtimeにフォールバックする。"""

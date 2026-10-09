@@ -431,7 +431,7 @@ class ThreadsResponse(BaseModel):
 
 @app.get("/api/conversations", response_model=ThreadsResponse)
 def get_threads() -> dict:
-    """保存済みの会話スレッド一覧を、作成日時が新しい順に返す（memory.list_threads()のラッパー）。
+    """保存済みの会話スレッド一覧を、最終更新日時が新しい順に返す（memory.list_threads()のラッパー）。
 
     titleもlist_threads()が一括で返すため、スレッドごとの追加読み込みは行わない。
     """
