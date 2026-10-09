@@ -58,7 +58,7 @@ claude-code-actionが内部で使うGitHub Appインストールトークン(cla
 
 変更に`.github/workflows/`配下のファイルが含まれる場合は、通常の`git push`の代わりに
 workflowスコープ付きの専用トークン(`$WORKFLOW_GH_TOKEN`)を使って明示的にpushすること:
-`git push https://x-access-token:${WORKFLOW_GH_TOKEN}@github.com/koji-s-private/llm-practice.git HEAD:<ブランチ名>`
+`git push https://x-access-token:${WORKFLOW_GH_TOKEN}@github.com/aokick-apps/llm-practice.git HEAD:<ブランチ名>`
 
 `$WORKFLOW_GH_TOKEN`が未設定(空文字列)、またはこの方法でも権限不足で拒否される場合は、
 リトライや代替手段を試みず、その旨(`WORKFLOW_GH_TOKEN`シークレットの登録・権限付与が
