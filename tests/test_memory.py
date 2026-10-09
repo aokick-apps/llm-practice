@@ -272,6 +272,19 @@ def test_list_threads_sorts_multiple_threads_newest_first(tmp_path, monkeypatch)
     assert [t["thread_id"] for t in threads] == ["thread-new", "thread-mid", "thread-old"]
 
 
+def test_list_threads_sorts_by_latest_conversation_not_creation(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    _write_log(tmp_path, "thread-old-revived", "20240101_090000_aaa111_q.md")
+    _write_log(tmp_path, "thread-old-revived", "20240301_090000_bbb222_q.md")
+    _write_log(tmp_path, "thread-newer", "20240201_090000_ccc333_q.md")
+
+    threads = memory.list_threads()
+
+    assert [t["thread_id"] for t in threads] == ["thread-old-revived", "thread-newer"]
+    assert threads[0]["created_at"] == datetime(2024, 1, 1, 9, 0, 0)
+    assert "_updated_at" not in threads[0]
+
+
 def test_list_threads_created_at_falls_back_to_mtime_for_unparseable_filename(tmp_path, monkeypatch):
     """異常系境界値: ファイル名がsave_conversationの命名規則（先頭15文字が日時）と一致しない場合、
     strptimeが失敗しファイルのmtimeにフォールバックする。"""
