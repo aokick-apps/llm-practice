@@ -19,7 +19,7 @@ GitHub Actions上で動くAIチームによって定期的にメンテナンス�
 - mainブランチへの直接コミット・pushは禁止。人間（オーナー）を含め全員、必ずfeatureブランチを作成し
   PR経由でのみ変更を反映する
 - GitHub純正のBranch protection rules / Rulesetsによる技術的な強制ブロックは**導入していない**。
-  Organization（`koji-s-private`）がGitHub Freeプランのため、privateリポジトリでのbranch protectionは
+  Organization（`aokick-apps`）がGitHub Freeプランのため、privateリポジトリでのbranch protectionは
   有料プラン（GitHub Team以上）が無いと有効化できない仕様であり（APIも`Upgrade to GitHub Pro or make
   this repository public`という403を返す）、既存の「課金が発生する可能性のある操作は絶対に実行しない」
   方針により有料化・組織移管・public化のいずれも行わないため。技術的ブロックの代わりに本ルールと
@@ -84,7 +84,7 @@ GitHub Actions上で動くAIチームによって定期的にメンテナンス�
   サブエージェント自身が `pip install` を追加実行してよい
 
 ## GitHub Projects 運用
-- Project board: [koji-s-private/llm-practice](https://github.com/orgs/koji-s-private/projects/3)（Projects v2）
+- Project board: [aokick-apps/llm-practice](https://github.com/orgs/aokick-apps/projects/2)（Projects v2）
   - Status: `Todo` → `In Progress` → `Under Review` → `Done`（`Under Review` はPR作成後、reviewerのレビュー中・修正対応中に使う独自追加ステータス）
 - 必要なID（`PROJECT_OWNER`, `PROJECT_NUMBER`, `PROJECT_ID`, `STATUS_FIELD_ID`,
   `STATUS_TODO_ID`, `STATUS_IN_PROGRESS_ID`, `STATUS_UNDER_REVIEW_ID`, `STATUS_DONE_ID`）は
@@ -144,7 +144,7 @@ GitHub Actions上で動くAIチームによって定期的にメンテナンス�
 - 優先度ラベル（`now`/`next`/`later`）は基本 `next` とする（緊急性が本当に高い場合のみ `now`）
 
 ## プロダクト方針とIssue自動作成
-- 常設の[📍 プロダクトロードマップ Issue](https://github.com/koji-s-private/llm-practice/issues/43)（`roadmap-thread` ラベル）に、オーナー（koji）が機能追加・改善・方針転換をコメントで書き込む運用にしている（react-native-first-appリポジトリと同じ仕組み）
+- 常設の[📍 プロダクトロードマップ Issue](https://github.com/aokick-apps/llm-practice/issues/43)（`roadmap-thread` ラベル）に、オーナー（koji）が機能追加・改善・方針転換をコメントで書き込む運用にしている（react-native-first-appリポジトリと同じ仕組み）
 - [.github/workflows/roadmap-groomer.yml](.github/workflows/roadmap-groomer.yml) が
   ロードマップIssueへの新規コメントをトリガーに起動し、要望を次のいずれかに振り分ける
   - 新規の要望 → 新しいIssueを作成し優先度ラベル（オーナー本人の明示的な依頼のため原則 `now`。有料サービスが必須の内容は `later` + 費用注意書き）を付与

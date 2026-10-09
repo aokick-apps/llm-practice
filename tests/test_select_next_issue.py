@@ -131,7 +131,7 @@ class _FakeGh:
 def _run_main_with_fake_gh(monkeypatch, tmp_path, fake: _FakeGh):
     monkeypatch.setenv("PROJECTS_GH_TOKEN", "dummy-token")
     monkeypatch.setenv("PROJECT_NUMBER", "3")
-    monkeypatch.setenv("PROJECT_OWNER", "koji-s-private")
+    monkeypatch.setenv("PROJECT_OWNER", "aokick-apps")
     monkeypatch.setenv("PROJECT_ID", "PROJECT_ID")
     monkeypatch.setenv("STATUS_FIELD_ID", "STATUS_FIELD_ID")
     monkeypatch.setenv("STATUS_TODO_ID", "STATUS_TODO_ID")
