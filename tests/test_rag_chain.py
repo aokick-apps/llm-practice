@@ -95,6 +95,32 @@ def test_grade_relevance_handles_content_blocks_list(monkeypatch):
     assert rag_chain._grade_relevance("質問", docs) == [0, 2]
 
 
+def test_grade_relevance_falls_back_to_empty_for_empty_content_blocks_list(monkeypatch):
+    docs = [_FakeDocument("a"), _FakeDocument("b")]
+    fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=[]))
+    monkeypatch.setattr(rag_chain, "model", fake_model)
+
+    assert rag_chain._grade_relevance("質問", docs) == []
+
+
+def test_grade_relevance_falls_back_to_empty_for_non_text_blocks_only(monkeypatch):
+    docs = [_FakeDocument("a"), _FakeDocument("b")]
+    blocks = [{"type": "thinking", "thinking": "回答:1"}, {"type": "tool_use", "id": "x", "name": "n", "input": {}}]
+    fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=blocks))
+    monkeypatch.setattr(rag_chain, "model", fake_model)
+
+    assert rag_chain._grade_relevance("質問", docs) == []
+
+
+def test_grade_relevance_ignores_non_text_blocks_mixed_with_text(monkeypatch):
+    docs = [_FakeDocument("a"), _FakeDocument("b"), _FakeDocument("c")]
+    blocks = [{"type": "thinking", "thinking": "考え中"}, {"type": "text", "text": "回答:2"}]
+    fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=blocks))
+    monkeypatch.setattr(rag_chain, "model", fake_model)
+
+    assert rag_chain._grade_relevance("質問", docs) == [1]
+
+
 def test_grade_relevance_uses_explicit_chat_model_over_global_model(monkeypatch):
     """chat_model引数を渡した場合、グローバルなrag_chain.modelではなくそちらが使われることを確認する
     （scripts/evaluate_model_accuracy.pyがモデルを差し替えて評価するための前提条件）。"""
