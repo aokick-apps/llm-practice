@@ -196,7 +196,8 @@ def _grade_relevance(query: str, docs: list, chat_model=None) -> list[int]:
         f"{listing}"
     )
     response = chat_model.invoke(prompt)
-    text = response.content.strip()
+    # content はプロバイダによって str または content blocks list になるため .text で取り出す
+    text = response.text.strip()
     # プロンプトでは最初の非空行だけに判定結果を書くよう指示しているため、判定対象も
     # それに合わせて最初の非空行に限定する。re.searchで文書全体から「回答:」行を
     # 探すと、候補文書内に埋め込まれた偽の「回答:」行をLLMがそのままエコーした場合に
