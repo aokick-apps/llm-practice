@@ -402,6 +402,26 @@ def test_resync_button_failed_files_shows_warning_immediately(monkeypatch):
     assert "bad.pdf" in at.warning[0].value
 
 
+def test_failed_sync_files_warning_has_warning_icon(monkeypatch):
+    """正常系: 読み込み失敗ファイルの警告バナーに⚠️アイコンが付く。"""
+    call_count = {"n": 0}
+
+    def flaky_sync(verbose=False, on_progress=None):
+        call_count["n"] += 1
+        failed = [] if call_count["n"] == 1 else ["bad.pdf"]
+        return {"added": [], "updated": [], "removed": [], "failed": failed}
+
+    monkeypatch.setattr(ingest, "sync_data_dir", flaky_sync)
+
+    at = _run_app()
+    resync_button = next(b for b in at.sidebar.button if "今すぐ反映" in b.label)
+    at = resync_button.click().run()
+
+    assert at.exception == []
+    assert len(at.warning) == 1
+    assert at.warning[0].icon == "⚠️"
+
+
 def test_resync_button_recovery_clears_warning_immediately(monkeypatch):
     """異常系境界値: 前回までの同期で残っていた失敗ファイルが、再同期ボタンの押下で
     0件（復旧）になった場合、warning_slotが同じturn内でクリアされ、古い警告が
