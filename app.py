@@ -238,7 +238,8 @@ def _show_failed_sync_files_warning(container: DeltaGenerator | None = None) -> 
     target.warning(
         "以下のファイルは読み込みに失敗したため、内容の反映がスキップされています"
         "（破損・パスワード付き・不正なエンコーディング等の可能性があります）。"
-        "data/ から修正・削除すると自動的に再試行されます:\n" + "\n".join(f"- {name}" for name in failed)
+        "data/ から修正・削除すると自動的に再試行されます:\n" + "\n".join(f"- {name}" for name in failed),
+        icon="⚠️",
     )
 
 
