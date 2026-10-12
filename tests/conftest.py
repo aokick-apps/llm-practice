@@ -130,3 +130,13 @@ def _default_current_provider_ollama(monkeypatch):
 
     monkeypatch.setattr(setup, "CURRENT_PROVIDER", "ollama")
     monkeypatch.setattr(setup, "CURRENT_PROVIDER_FALLBACK_REASON", None)
+
+
+@pytest.fixture(autouse=True)
+def _clear_ollama_model_names_cache():
+    """Ollamaモデル一覧のTTLキャッシュがテスト間で漏れないよう毎回クリアする。"""
+    import setup
+
+    setup.clear_ollama_model_names_cache()
+    yield
+    setup.clear_ollama_model_names_cache()

@@ -3,6 +3,7 @@ import json
 import os
 import socket
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -100,9 +101,33 @@ def _fetch_ollama_pulled_model_names() -> set[str] | None:
     return {model.get("name", "") for model in data.get("models", [])}
 
 
+OLLAMA_MODEL_NAMES_CACHE_TTL_SECONDS = 30
+_ollama_model_names_cache: tuple[float, set[str]] | None = None
+
+
+def clear_ollama_model_names_cache() -> None:
+    global _ollama_model_names_cache
+    _ollama_model_names_cache = None
+
+
 def _ollama_pulled_model_names() -> set[str]:
-    """一覧表示用途のpull済みモデル名一覧。取得失敗時は空集合を返す。"""
-    return _fetch_ollama_pulled_model_names() or set()
+    """一覧表示用途のpull済みモデル名一覧。取得失敗時は空集合を返す。
+
+    再実行のたびの /api/tags 呼び出しを避けるためTTLキャッシュする。失敗結果は
+    キャッシュせず、Ollama起動後すぐに一覧へ反映されるようにする。
+    """
+    global _ollama_model_names_cache
+    now = time.monotonic()
+    if _ollama_model_names_cache is not None:
+        fetched_at, cached_names = _ollama_model_names_cache
+        if now - fetched_at < OLLAMA_MODEL_NAMES_CACHE_TTL_SECONDS:
+            return set(cached_names)
+
+    names = _fetch_ollama_pulled_model_names()
+    if names is None:
+        return set()
+    _ollama_model_names_cache = (now, names)
+    return set(names)
 
 
 def _ollama_model_pulled() -> bool:
