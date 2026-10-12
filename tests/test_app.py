@@ -5814,6 +5814,51 @@ def test_model_switcher_hidden_when_no_models_available(monkeypatch):
     assert not any(sb.label == "使用するモデル" for sb in at.selectbox)
 
 
+def _model_switcher_refresh_button(at):
+    return next(b for b in at.button if b.key == "model_switcher_refresh")
+
+
+def _patch_single_ollama_model(monkeypatch):
+    import setup
+
+    monkeypatch.setattr(setup, "list_available_models", lambda: [{"provider": "ollama", "model": "llama3.1"}])
+    monkeypatch.setattr(setup, "CURRENT_PROVIDER", "ollama")
+    monkeypatch.setattr(setup, "CURRENT_MODEL_NAME", "llama3.1")
+
+
+def test_model_switcher_refresh_button_clears_model_names_cache(monkeypatch):
+    """正常系: 「モデル一覧を更新」ボタンのクリックでOllamaモデル一覧キャッシュがクリアされる。"""
+    import setup
+
+    _patch_single_ollama_model(monkeypatch)
+    calls = []
+    monkeypatch.setattr(setup, "clear_ollama_model_names_cache", lambda: calls.append(1))
+
+    at = _run_app()
+    assert at.exception == []
+    assert calls == []
+
+    _model_switcher_refresh_button(at).click().run()
+
+    assert at.exception == []
+    assert calls == [1]
+
+
+def test_model_switcher_refresh_button_label_and_not_clicked_by_default(monkeypatch):
+    """境界値: ボタンは所定のラベルで描画され、未クリックの再実行ではキャッシュはクリアされない。"""
+    import setup
+
+    _patch_single_ollama_model(monkeypatch)
+    calls = []
+    monkeypatch.setattr(setup, "clear_ollama_model_names_cache", lambda: calls.append(1))
+
+    at = _run_app()
+    at.run()
+
+    assert _model_switcher_refresh_button(at).label == "🔄 モデル一覧を更新"
+    assert calls == []
+
+
 def test_model_switcher_adds_anthropic_option_when_key_set(monkeypatch):
     """正常系: ANTHROPIC_API_KEYが設定されている場合、Anthropicの選択肢が追加される。"""
     import setup
