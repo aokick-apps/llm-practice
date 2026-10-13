@@ -1019,3 +1019,40 @@ def test_importing_rag_chain_does_not_build_model(monkeypatch):
     monkeypatch.delitem(sys.modules, "rag_chain", raising=False)
 
     importlib.import_module("rag_chain")
+
+
+def test_get_model_does_not_cache_exceptions_and_retries(monkeypatch, _fresh_model_cache):
+    sentinel = object()
+    outcomes = [RuntimeError("構築失敗"), sentinel]
+
+    def flaky_build():
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(setup, "_build_model", flaky_build)
+
+    with pytest.raises(RuntimeError):
+        setup.get_model()
+    assert setup.get_model() is sentinel
+
+
+def test_get_model_raises_runtime_error_when_no_provider_available(monkeypatch, _fresh_model_cache):
+    _clear_keys(monkeypatch)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False, raising=False)
+
+    with pytest.raises(RuntimeError):
+        setup.get_model()
+
+
+def test_get_model_cache_clear_rebuilds(monkeypatch, _fresh_model_cache):
+    calls = []
+    monkeypatch.setattr(setup, "_build_model", lambda: calls.append(1) or object())
+
+    first = setup.get_model()
+    setup.get_model.cache_clear()
+    second = setup.get_model()
+
+    assert first is not second
+    assert len(calls) == 2
