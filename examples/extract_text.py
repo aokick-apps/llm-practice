@@ -8,10 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder  # noqa: E402
 from langchain_core.utils.function_calling import tool_example_to_messages  # noqa: E402
 
-from setup import model  # noqa: E402
+from setup import get_model  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
-
-llm = model
 
 class Person(BaseModel):
     """Information about a person."""
@@ -91,7 +89,7 @@ prompt_template = ChatPromptTemplate.from_messages(
 #     },
 # ]
 
-# response = llm.invoke(messages)
+# response = get_model().invoke(messages)
 # print(response.content)
 
 
@@ -129,12 +127,12 @@ def main() -> None:
     text = "My name is Jeff, my hair is black and i am 6 feet tall. " "Anna has the same color hair as me."
     prompt = prompt_template.invoke({"text": text})
 
-    structured_llm = llm.with_structured_output(schema=Data)
+    structured_llm = get_model().with_structured_output(schema=Data)
     # structured_llm.invoke(prompt)
     print(structured_llm.invoke(prompt))
 
     messages = []
-    structured_llm = llm.with_structured_output(schema=Data)
+    structured_llm = get_model().with_structured_output(schema=Data)
     # structured_llm.invoke([message_no_extraction])
     # print(structured_llm.invoke([message_no_extraction]))
     print(structured_llm.invoke(messages + [message_no_extraction]))

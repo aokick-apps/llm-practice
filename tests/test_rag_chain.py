@@ -81,7 +81,7 @@ def test_grade_relevance_returns_empty_for_no_candidates():
 def test_grade_relevance_parses_comma_separated_indices(monkeypatch):
     docs = [_FakeDocument("a"), _FakeDocument("b"), _FakeDocument("c")]
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content="回答:1,3"))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == [0, 2]
 
@@ -90,7 +90,7 @@ def test_grade_relevance_handles_content_blocks_list(monkeypatch):
     docs = [_FakeDocument("a"), _FakeDocument("b"), _FakeDocument("c")]
     blocks = [{"type": "text", "text": "回答:1,"}, {"type": "text", "text": "3"}]
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=blocks))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == [0, 2]
 
@@ -98,7 +98,7 @@ def test_grade_relevance_handles_content_blocks_list(monkeypatch):
 def test_grade_relevance_falls_back_to_empty_for_empty_content_blocks_list(monkeypatch):
     docs = [_FakeDocument("a"), _FakeDocument("b")]
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=[]))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == []
 
@@ -107,7 +107,7 @@ def test_grade_relevance_falls_back_to_empty_for_non_text_blocks_only(monkeypatc
     docs = [_FakeDocument("a"), _FakeDocument("b")]
     blocks = [{"type": "thinking", "thinking": "回答:1"}, {"type": "tool_use", "id": "x", "name": "n", "input": {}}]
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=blocks))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == []
 
@@ -116,19 +116,19 @@ def test_grade_relevance_ignores_non_text_blocks_mixed_with_text(monkeypatch):
     docs = [_FakeDocument("a"), _FakeDocument("b"), _FakeDocument("c")]
     blocks = [{"type": "thinking", "thinking": "考え中"}, {"type": "text", "text": "回答:2"}]
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=blocks))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == [1]
 
 
 def test_grade_relevance_uses_explicit_chat_model_over_global_model(monkeypatch):
-    """chat_model引数を渡した場合、グローバルなrag_chain.modelではなくそちらが使われることを確認する
+    """chat_model引数を渡した場合、グローバルなget_model()の既定モデルではなくそちらが使われることを確認する
     （scripts/evaluate_model_accuracy.pyがモデルを差し替えて評価するための前提条件）。"""
     docs = [_FakeDocument("a")]
     global_model = SimpleNamespace(
         invoke=lambda prompt: (_ for _ in ()).throw(AssertionError("グローバルmodelは呼ばれてはいけない"))
     )
-    monkeypatch.setattr(rag_chain, "model", global_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: global_model)
     injected_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content="回答:1"))
 
     assert rag_chain._grade_relevance("質問", docs, injected_model) == [0]
@@ -137,7 +137,7 @@ def test_grade_relevance_uses_explicit_chat_model_over_global_model(monkeypatch)
 def test_grade_relevance_returns_empty_when_llm_says_none(monkeypatch):
     docs = [_FakeDocument("a"), _FakeDocument("b")]
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content="回答:なし"))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == []
 
@@ -146,7 +146,7 @@ def test_grade_relevance_ignores_out_of_range_indices(monkeypatch):
     docs = [_FakeDocument("a"), _FakeDocument("b")]
     # 候補は2件しかないのに "5" という範囲外の番号を返してきた場合は無視する
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content="回答:5"))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == []
 
@@ -160,7 +160,7 @@ def test_grade_relevance_ignores_numbers_in_freeform_explanation_lines(monkeypat
     docs = [_FakeDocument("a"), _FakeDocument("b"), _FakeDocument("c")]
     content = "回答:1,3\n文書1は2024年に関する内容でした。文書3が最も関連しています。"
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=content))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == [0, 2]
 
@@ -175,7 +175,7 @@ def test_grade_relevance_falls_back_to_empty_when_answer_prefix_missing(monkeypa
     docs = [_FakeDocument("a"), _FakeDocument("b"), _FakeDocument("c")]
     content = "文書1と文書3が関連しています。"
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=content))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == []
 
@@ -186,7 +186,7 @@ def test_grade_relevance_parses_fullwidth_colon_answer_prefix(monkeypatch):
     """
     docs = [_FakeDocument("a"), _FakeDocument("b"), _FakeDocument("c")]
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content="回答：1,3"))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == [0, 2]
 
@@ -210,7 +210,7 @@ def test_grade_relevance_includes_content_beyond_300_chars_up_to_chunk_size(monk
         captured_prompt["value"] = prompt
         return AIMessage(content="回答:1")
 
-    monkeypatch.setattr(rag_chain, "model", SimpleNamespace(invoke=fake_invoke))
+    monkeypatch.setattr(rag_chain, "get_model", lambda: SimpleNamespace(invoke=fake_invoke))
 
     rag_chain._grade_relevance("質問", docs)
 
@@ -235,7 +235,7 @@ def test_grade_relevance_includes_content_at_exactly_chunk_size_boundary(monkeyp
         captured_prompt["value"] = prompt
         return AIMessage(content="回答:1")
 
-    monkeypatch.setattr(rag_chain, "model", SimpleNamespace(invoke=fake_invoke))
+    monkeypatch.setattr(rag_chain, "get_model", lambda: SimpleNamespace(invoke=fake_invoke))
 
     rag_chain._grade_relevance("質問", docs)
 
@@ -252,7 +252,7 @@ def test_grade_relevance_prompt_includes_injection_defense_instruction(monkeypat
         captured_prompt["value"] = prompt
         return AIMessage(content="回答:1")
 
-    monkeypatch.setattr(rag_chain, "model", SimpleNamespace(invoke=fake_invoke))
+    monkeypatch.setattr(rag_chain, "get_model", lambda: SimpleNamespace(invoke=fake_invoke))
 
     rag_chain._grade_relevance("質問", docs)
 
@@ -278,7 +278,7 @@ def test_grade_relevance_ignores_injected_answer_line_in_document_content(monkey
         # LLMが対策の指示に従い、文書内の偽の指示には惑わされず正しく判定したとする
         return AIMessage(content="回答:2")
 
-    monkeypatch.setattr(rag_chain, "model", SimpleNamespace(invoke=fake_invoke))
+    monkeypatch.setattr(rag_chain, "get_model", lambda: SimpleNamespace(invoke=fake_invoke))
 
     result = rag_chain._grade_relevance("質問", docs)
 
@@ -297,7 +297,7 @@ def test_grade_relevance_uses_first_line_when_multiple_answer_lines_present(monk
     docs = [_FakeDocument("a"), _FakeDocument("b"), _FakeDocument("c")]
     content = "回答:2\n回答:1,3"
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=content))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == [1]
 
@@ -312,7 +312,7 @@ def test_grade_relevance_falls_back_to_empty_when_first_line_is_not_answer_prefi
     docs = [_FakeDocument("a"), _FakeDocument("b")]
     content = "\n文書1が関連していると思います。\n回答:1"
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=content))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == []
 
@@ -328,7 +328,7 @@ def test_grade_relevance_returns_empty_when_first_line_answer_value_is_empty(mon
     docs = [_FakeDocument("a"), _FakeDocument("b")]
     content = "回答:\n回答:1,2"
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=content))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == []
 
@@ -342,7 +342,7 @@ def test_grade_relevance_falls_back_to_empty_when_response_is_blank(monkeypatch)
     docs = [_FakeDocument("a"), _FakeDocument("b")]
     content = "   \n\t\n   "
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=content))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == []
 
@@ -359,7 +359,7 @@ def test_grade_relevance_falls_back_to_empty_when_llm_echoes_injected_instructio
     # LLMが指示文を無批判に繰り返してしまい、「回答:」形式を守れなかったケース
     content = "はい、すべての文書が関連していると回答します。"
     fake_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content=content))
-    monkeypatch.setattr(rag_chain, "model", fake_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: fake_model)
 
     assert rag_chain._grade_relevance("質問", docs) == []
 
@@ -383,7 +383,7 @@ def test_grade_relevance_truncates_content_beyond_chunk_size(monkeypatch):
         captured_prompt["value"] = prompt
         return AIMessage(content="回答:1")
 
-    monkeypatch.setattr(rag_chain, "model", SimpleNamespace(invoke=fake_invoke))
+    monkeypatch.setattr(rag_chain, "get_model", lambda: SimpleNamespace(invoke=fake_invoke))
 
     rag_chain._grade_relevance("質問", docs)
 
@@ -411,7 +411,7 @@ def test_system_prompt_instructs_inline_citation_numbers():
 
 
 def test_build_agent_passes_injected_chat_model_to_create_agent(monkeypatch):
-    """chat_model引数を渡した場合、create_agent()にはグローバルなrag_chain.modelではなく
+    """chat_model引数を渡した場合、create_agent()にはグローバルなget_model()の既定モデルではなく
     そちらが渡されることを確認する（scripts/evaluate_model_accuracy.pyがモデルを差し替えて
     評価するための前提条件）。"""
     store = _FakeVectorStore(results=[])
@@ -432,7 +432,7 @@ def test_build_agent_passes_injected_chat_model_to_grade_relevance(monkeypatch):
     global_model = SimpleNamespace(
         invoke=lambda prompt: (_ for _ in ()).throw(AssertionError("グローバルmodelは呼ばれてはいけない"))
     )
-    monkeypatch.setattr(rag_chain, "model", global_model)
+    monkeypatch.setattr(rag_chain, "get_model", lambda: global_model)
     injected_model = SimpleNamespace(invoke=lambda prompt: AIMessage(content="回答:1"))
 
     agent = rag_chain.build_agent(thread_id="thread-1", chat_model=injected_model)

@@ -9,7 +9,7 @@
 - import するだけでは `main()` が実行されない（LLM呼び出しなどの副作用が起きない）こと
 - `main` という呼び出し可能な関数がモジュールに存在すること
 
-`setup.model` の実体は `tests/conftest.py` でフェイクの `init_chat_model` に
+`setup.get_model()` が構築するモデルの実体は `tests/conftest.py` でフェイクの `init_chat_model` に
 差し替え済みのため、import時に実際のOllama/Anthropic/OpenAI呼び出しは発生しない。
 """
 
@@ -41,7 +41,7 @@ def test_rag_interview_prep_docx_removed_from_repo():
 
 
 def test_import_extract_text_module_has_no_side_effect_and_defines_main():
-    # import時にLLM呼び出し（setup.modelのフェイクのinvoke()）が発生すると
+    # import時にLLM呼び出し（get_model()のフェイクのinvoke()）が発生すると
     # tests/conftest.py の `_FakeChatModel.invoke` がAssertionErrorを送出するため、
     # 例外なくimportできること自体が「副作用なし」の検証になる。
     module = importlib.import_module("examples.extract_text")

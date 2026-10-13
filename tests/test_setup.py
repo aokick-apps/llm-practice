@@ -967,3 +967,92 @@ def test_estimate_cost_usd_handles_very_large_token_counts():
     )
 
     assert setup.estimate_cost_usd("anthropic", input_tokens, output_tokens) == expected
+
+
+# --- get_model()（遅延初期化 + キャッシュ） ---
+
+
+@pytest.fixture
+def _fresh_model_cache():
+    setup.get_model.cache_clear()
+    yield
+    setup.get_model.cache_clear()
+
+
+def test_get_model_builds_once_and_caches(monkeypatch, _fresh_model_cache):
+    calls = []
+    sentinel = object()
+
+    def fake_build():
+        calls.append(1)
+        return sentinel
+
+    monkeypatch.setattr(setup, "_build_model", fake_build)
+
+    assert calls == []
+    assert setup.get_model() is sentinel
+    assert setup.get_model() is sentinel
+    assert len(calls) == 1
+
+
+def test_get_model_sets_current_provider_on_first_call(monkeypatch, _fresh_model_cache):
+    _clear_keys(monkeypatch)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy")
+    monkeypatch.setattr(setup, "CURRENT_PROVIDER", None)
+
+    setup.get_model()
+
+    assert setup.CURRENT_PROVIDER == "anthropic"
+
+
+def test_setup_has_no_eager_model_attribute():
+    assert not hasattr(setup, "model")
+
+
+def test_importing_rag_chain_does_not_build_model(monkeypatch):
+    import sys
+
+    def forbid():
+        raise AssertionError("import時に_build_model()が呼ばれてはいけない")
+
+    monkeypatch.setattr(setup, "_build_model", forbid)
+    monkeypatch.delitem(sys.modules, "rag_chain", raising=False)
+
+    importlib.import_module("rag_chain")
+
+
+def test_get_model_does_not_cache_exceptions_and_retries(monkeypatch, _fresh_model_cache):
+    sentinel = object()
+    outcomes = [RuntimeError("構築失敗"), sentinel]
+
+    def flaky_build():
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(setup, "_build_model", flaky_build)
+
+    with pytest.raises(RuntimeError):
+        setup.get_model()
+    assert setup.get_model() is sentinel
+
+
+def test_get_model_raises_runtime_error_when_no_provider_available(monkeypatch, _fresh_model_cache):
+    _clear_keys(monkeypatch)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False, raising=False)
+
+    with pytest.raises(RuntimeError):
+        setup.get_model()
+
+
+def test_get_model_cache_clear_rebuilds(monkeypatch, _fresh_model_cache):
+    calls = []
+    monkeypatch.setattr(setup, "_build_model", lambda: calls.append(1) or object())
+
+    first = setup.get_model()
+    setup.get_model.cache_clear()
+    second = setup.get_model()
+
+    assert first is not second
+    assert len(calls) == 2

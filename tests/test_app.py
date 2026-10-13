@@ -5936,7 +5936,7 @@ def test_selecting_new_model_in_switcher_updates_session_state_sidebar_and_agent
     monkeypatch.setattr(rag_chain, "build_agent", _fake_build_agent)
 
     at = _run_app()
-    assert build_agent_calls == [setup.model]
+    assert build_agent_calls == [setup.get_model()]
 
     selectbox = _model_switcher_selectbox(at)
     at2 = selectbox.select("Anthropic: claude-sonnet-5").run()
@@ -5948,7 +5948,7 @@ def test_selecting_new_model_in_switcher_updates_session_state_sidebar_and_agent
     assert at2.session_state["chat_model"] is new_chat_model
     assert at2.session_state["model_manually_selected"] is True
     # 選択変更でエージェントも再構築され、新しいchat_modelが渡される
-    assert build_agent_calls == [setup.model, new_chat_model]
+    assert build_agent_calls == [setup.get_model(), new_chat_model]
 
     first_caption = at2.sidebar.caption[0].value
     assert "Anthropic (claude-sonnet-5)" in first_caption
@@ -5987,7 +5987,7 @@ def test_reselecting_same_model_does_not_rebuild_agent(monkeypatch):
 
     assert at2.exception == []
     assert build_chat_model_calls == []
-    assert build_agent_calls == [setup.model]
+    assert build_agent_calls == [setup.get_model()]
     assert "model_manually_selected" not in at2.session_state
 
 

@@ -6,6 +6,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from functools import lru_cache
 
 from langchain.chat_models import init_chat_model
 
@@ -278,4 +279,11 @@ def current_model_label() -> str:
     return model_label(CURRENT_PROVIDER, CURRENT_MODEL_NAME)
 
 
-model = _build_model()
+@lru_cache(maxsize=1)
+def get_model():
+    """起動時に自動選択されたチャットモデルを返す（初回呼び出し時に構築し、以降はキャッシュを返す）。
+
+    import時に構築しないことで、モデルを使わないCLIの --help などがOllama/APIキー未設定でも動くようにする。
+    CURRENT_PROVIDER / CURRENT_MODEL_NAME は初回呼び出しで確定するため、参照前に一度呼び出すこと。
+    """
+    return _build_model()
