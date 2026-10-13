@@ -893,6 +893,7 @@ def _render_model_switcher() -> None:
     )
 
     with st.popover("🤖 モデルを切り替え"):
+        st.button("🔄 モデル一覧を更新", key="model_switcher_refresh", on_click=setup.clear_ollama_model_names_cache)
         if matched_index is None:
             current_label = setup.model_label(st.session_state.selected_provider, st.session_state.selected_model_name)
             st.caption(f"現在使用中: {current_label}（一覧に見つかりません）")

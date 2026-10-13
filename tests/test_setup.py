@@ -769,6 +769,58 @@ def test_ollama_pulled_model_names_returns_actual_set_on_success(monkeypatch):
     assert setup._ollama_pulled_model_names() == {"llama3.1:latest"}
 
 
+def _count_fetch_calls(monkeypatch, results):
+    calls = []
+
+    def _fake_fetch():
+        calls.append(1)
+        return results[min(len(calls), len(results)) - 1]
+
+    monkeypatch.setattr(setup, "_fetch_ollama_pulled_model_names", _fake_fetch)
+    return calls
+
+
+def test_ollama_pulled_model_names_cache_hit_within_ttl(monkeypatch):
+    """TTL内の2回目以降はAPIを再取得せずキャッシュを返す。"""
+    calls = _count_fetch_calls(monkeypatch, [{"a:latest"}])
+    monkeypatch.setattr(setup.time, "monotonic", lambda: 100.0)
+
+    assert setup._ollama_pulled_model_names() == {"a:latest"}
+    assert setup._ollama_pulled_model_names() == {"a:latest"}
+    assert len(calls) == 1
+
+
+def test_ollama_pulled_model_names_cache_expires_after_ttl(monkeypatch):
+    calls = _count_fetch_calls(monkeypatch, [{"a:latest"}, {"b:latest"}])
+    clock = {"t": 100.0}
+    monkeypatch.setattr(setup.time, "monotonic", lambda: clock["t"])
+
+    assert setup._ollama_pulled_model_names() == {"a:latest"}
+    clock["t"] += setup.OLLAMA_MODEL_NAMES_CACHE_TTL_SECONDS
+    assert setup._ollama_pulled_model_names() == {"b:latest"}
+    assert len(calls) == 2
+
+
+def test_ollama_pulled_model_names_failure_is_not_cached(monkeypatch):
+    calls = _count_fetch_calls(monkeypatch, [None, {"a:latest"}])
+    monkeypatch.setattr(setup.time, "monotonic", lambda: 100.0)
+
+    assert setup._ollama_pulled_model_names() == set()
+    assert setup._ollama_pulled_model_names() == {"a:latest"}
+    assert len(calls) == 2
+
+
+def test_clear_ollama_model_names_cache_forces_refetch(monkeypatch):
+    calls = _count_fetch_calls(monkeypatch, [{"a:latest"}, {"b:latest"}])
+    monkeypatch.setattr(setup.time, "monotonic", lambda: 100.0)
+
+    setup._ollama_pulled_model_names()
+    setup.clear_ollama_model_names_cache()
+
+    assert setup._ollama_pulled_model_names() == {"b:latest"}
+    assert len(calls) == 2
+
+
 # --- build_chat_model()（モデル切替UIから実際にチャットモデルを構築する） ---
 
 
