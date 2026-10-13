@@ -30,7 +30,7 @@ from langchain_chroma import Chroma
 from langchain_core.embeddings import Embeddings
 from langchain_huggingface import HuggingFaceEmbeddings
 
-from setup import model
+from setup import get_model
 
 # ベクトルDBの永続化先（このファイルと同じディレクトリ配下）
 PERSIST_DIR = Path(__file__).parent / "chroma_db"
@@ -174,12 +174,12 @@ def _grade_relevance(query: str, docs: list, chat_model=None) -> list[int]:
     から始まる1行だけに判定結果を書くようフォーマットを強制し、その行が無ければ
     誤って関連文書を拾うより安全な全除外（空リスト）にフォールバックする。
 
-    chat_model省略時はモジュールレベルのグローバルmodel（起動時に自動選択されたモデル）を
-    呼び出し時点で参照する（scripts/evaluate_model_accuracy.pyがモデルを差し替えて評価できるように、
+    chat_model省略時は起動時に自動選択されたモデル（setup.get_model()）を
+    呼び出し時点で解決する（scripts/evaluate_model_accuracy.pyがモデルを差し替えて評価できるように、
     デフォルト引数ではなく関数本体で解決する）。
     """
     if chat_model is None:
-        chat_model = model
+        chat_model = get_model()
     if not docs:
         return []
 
@@ -235,8 +235,8 @@ def build_agent(
     このスレッド自身の会話ログ（data/conversations/<thread_id>/...）だけに絞られ、
     他スレッドのログは検索結果に混ざらない。
 
-    chat_model省略時はモジュールレベルのグローバルmodel（起動時に自動選択されたモデル）を
-    使う。scripts/evaluate_model_accuracy.pyのようにモデルを差し替えて評価したい場合に指定する。
+    chat_model省略時は起動時に自動選択されたモデル（setup.get_model()）を使う。scripts/evaluate_model_accuracy.pyのように
+    モデルを差し替えて評価したい場合に指定する。
 
     source_filter は検索のたびに呼ばれ、検索対象にするsourceメタデータのリストを返す
     （None・空リストなら全件対象）。エージェントを作り直さずに絞り込みを切り替えるために
@@ -251,7 +251,7 @@ def build_agent(
         answer = result["messages"][-1].content
     """
     if chat_model is None:
-        chat_model = model
+        chat_model = get_model()
     vector_store = get_vectorstore()
     allowed_thread_ids = list({GLOBAL_THREAD_ID, thread_id})
     # retrieve_contextは1ターン中に複数回呼ばれることがあり、そのたびに番号を1から

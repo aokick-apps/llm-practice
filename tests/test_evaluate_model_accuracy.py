@@ -354,3 +354,27 @@ def test_main_never_calls_init_chat_model_directly_for_paid_provider_without_fla
         raised = True
 
     assert raised
+
+
+def test_help_succeeds_without_ollama_or_api_keys():
+    """Ollama・APIキー未設定の非対話環境でも --help が RuntimeError なく表示できる。"""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parent.parent
+    env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY")}
+    env["DISABLE_OLLAMA"] = "true"
+    result = subprocess.run(
+        [sys.executable, str(repo_root / "scripts" / "evaluate_model_accuracy.py"), "--help"],
+        cwd=repo_root,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "usage" in result.stdout.lower()

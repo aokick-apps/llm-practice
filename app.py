@@ -941,11 +941,12 @@ if "thread_id" not in st.session_state:
     st.session_state.thread_id = new_thread_id()
 
 if "chat_model" not in st.session_state:
-    # 初期値は起動時にsetup._build_model()が自動選択したモデルをそのまま使う。
+    # 初期値は初回にsetup.get_model()が自動選択したモデルをそのまま使う。
     # ユーザーがUIから切り替えるまではこの状態のままにする。
+    # CURRENT_PROVIDER等はget_model()で確定するため、先に呼び出してから参照する。
+    st.session_state.chat_model = setup.get_model()
     st.session_state.selected_provider = setup.CURRENT_PROVIDER
     st.session_state.selected_model_name = setup.CURRENT_MODEL_NAME
-    st.session_state.chat_model = setup.model
 
 # Streamlitは操作のたびにスクリプト全体を再実行する仕様なので、軽量シグネチャ
 # （ファイル数+最新mtime、内容は読まない）で前回値と比較し、data/の変更

@@ -66,7 +66,7 @@ def _install_stub_module(name: str, **attrs) -> types.ModuleType:
 
 
 class _FakeChatModel:
-    """setup.model の代わりに使うダミーのチャットモデル。
+    """setup.get_model() が返すモデルの代わりに使うダミーのチャットモデル。
 
     テスト側で `.invoke` を monkeypatch してから使う想定のため、
     そのままの呼び出しはテストの意図しない実LLM依存を防ぐために失敗させる。
@@ -128,6 +128,8 @@ def _default_current_provider_ollama(monkeypatch):
     """
     import setup
 
+    # get_model()は初回呼び出しでCURRENT_PROVIDERを書き換えるため、上書きの前に構築を済ませておく。
+    setup.get_model()
     monkeypatch.setattr(setup, "CURRENT_PROVIDER", "ollama")
     monkeypatch.setattr(setup, "CURRENT_PROVIDER_FALLBACK_REASON", None)
 

@@ -4,7 +4,7 @@ from pathlib import Path
 # リポジトリ直下の setup.py を import できるよう、examples/ の1つ上の階層を sys.path に追加する。
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from setup import model  # noqa: E402
+from setup import get_model  # noqa: E402
 from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
 
 
@@ -41,7 +41,7 @@ def main() -> None:
     print(prompt)
     print(prompt.to_messages())
 
-    response = model.invoke(prompt)
+    response = get_model().invoke(prompt)
     print(response.content)
 
 
