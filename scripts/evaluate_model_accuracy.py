@@ -37,10 +37,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from langchain.chat_models import init_chat_model
 from langchain_chroma import Chroma
-from langchain_core.documents import Document
 
 import rag_chain
 from rag_chain import get_embeddings
+from scripts.evaluation_corpus import build_documents
 from setup import OLLAMA_NUM_CTX
 
 # 評価用に検索対象とするスレッドID（build_agent()のthread_id引数）。
@@ -49,40 +49,19 @@ EVAL_THREAD_ID = "eval-model-accuracy"
 
 # 評価専用コーパス（本番のdata/とは無関係）。数値・固有名詞など、LLMが言い換えても
 # 残りやすい具体的な事実を1文書1トピックで用意している。
-CORPUS = [
-    Document(
-        "返品ポリシー: 電化製品は購入から30日以内であれば未使用品に限り返品を受け付けます。",
-        metadata={"doc_id": "return_policy", "thread_id": rag_chain.GLOBAL_THREAD_ID},
-    ),
-    Document(
-        "国内配送: 国内への配送は通常3〜5営業日で到着します。送料は5000円以上のご注文で無料になります。",
-        metadata={"doc_id": "shipping_domestic", "thread_id": rag_chain.GLOBAL_THREAD_ID},
-    ),
-    Document(
-        "パスワードポリシー: パスワードは12文字以上とし、90日ごとに変更する必要があります。",
-        metadata={"doc_id": "password_policy", "thread_id": rag_chain.GLOBAL_THREAD_ID},
-    ),
-    Document(
-        "有給休暇の申請は、取得希望日の2週間前までに人事ポータルから申請してください。",
-        metadata={"doc_id": "vacation_request", "thread_id": rag_chain.GLOBAL_THREAD_ID},
-    ),
-    Document(
-        "経費精算は、領収書を経費システムにアップロードし、支出から30日以内に申請する必要があります。",
-        metadata={"doc_id": "expense_report", "thread_id": rag_chain.GLOBAL_THREAD_ID},
-    ),
-    Document(
-        "データベースのバックアップは毎晩深夜2時に自動実行され、30日分保存されます。",
-        metadata={"doc_id": "db_backup_schedule", "thread_id": rag_chain.GLOBAL_THREAD_ID},
-    ),
-    Document(
-        "二要素認証（2FA）は、設定ページの「セキュリティ」タブから認証アプリを使って有効化できます。",
-        metadata={"doc_id": "two_factor_auth", "thread_id": rag_chain.GLOBAL_THREAD_ID},
-    ),
-    Document(
-        "会議室の予約は社内カレンダーアプリから行えます。30分単位で予約可能です。",
-        metadata={"doc_id": "meeting_room_booking", "thread_id": rag_chain.GLOBAL_THREAD_ID},
-    ),
-]
+CORPUS = build_documents(
+    [
+        "return_policy",
+        "shipping_domestic",
+        "password_policy",
+        "vacation_request",
+        "expense_report",
+        "db_backup_schedule",
+        "two_factor_auth",
+        "meeting_room_booking",
+    ],
+    thread_id=rag_chain.GLOBAL_THREAD_ID,
+)
 
 # 質問と、正誤判定用の期待キーワードのペア。expected_keywords は「最終回答に全て含まれていれば
 # 正解」というAND判定に使う（score_answer/summarize参照）。
