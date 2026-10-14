@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from langchain_core.documents import Document
 
 from rag_chain import _grade_relevance
+from scripts.evaluation_corpus import DOCUMENT_TEXTS
 
 
 def _candidate(text: str, relevant: bool) -> dict:
@@ -40,16 +41,15 @@ EVAL_CASES = [
         "query": "電化製品はいつまで返品できますか？",
         "candidates": [
             _candidate(
-                "返品ポリシー: 電化製品は購入から30日以内であれば未使用品に限り返品を受け付けます。",
+                DOCUMENT_TEXTS["return_policy"],
                 True,
             ),
             _candidate(
-                "交換ポリシー: セール品・アウトレット品は返品不可ですが、"
-                "サイズ違いによる交換のみ購入後14日以内であれば承ります。",
+                DOCUMENT_TEXTS["exchange_policy"],
                 False,
             ),
             _candidate(
-                "国内配送: 国内への配送は通常3〜5営業日で到着します。送料は5000円以上のご注文で無料になります。",
+                DOCUMENT_TEXTS["shipping_domestic"],
                 False,
             ),
         ],
@@ -58,15 +58,15 @@ EVAL_CASES = [
         "query": "海外へ配送する場合、届くまでどれくらいかかりますか？",
         "candidates": [
             _candidate(
-                "海外配送: 海外への配送には通常10〜15営業日かかります。関税はお客様負担となる場合があります。",
+                DOCUMENT_TEXTS["shipping_international"],
                 True,
             ),
             _candidate(
-                "国内配送: 国内への配送は通常3〜5営業日で到着します。送料は5000円以上のご注文で無料になります。",
+                DOCUMENT_TEXTS["shipping_domestic"],
                 False,
             ),
             _candidate(
-                "返品ポリシー: 電化製品は購入から30日以内であれば未使用品に限り返品を受け付けます。",
+                DOCUMENT_TEXTS["return_policy"],
                 False,
             ),
         ],
@@ -75,15 +75,15 @@ EVAL_CASES = [
         "query": "Pythonでリストを1行で作る書き方を教えて",
         "candidates": [
             _candidate(
-                "Pythonのリスト内包表記は `[式 for 変数 in イテラブル]` の形式で、ループを1行で簡潔に書ける構文です。",
+                DOCUMENT_TEXTS["python_list_comprehension"],
                 True,
             ),
             _candidate(
-                "Pythonの辞書内包表記は `{キー: 値 for 変数 in イテラブル}` の形式で、辞書を1行で構築できます。",
+                DOCUMENT_TEXTS["python_dict_comprehension"],
                 False,
             ),
             _candidate(
-                "コミットメッセージは Conventional Commits（feat:, fix:, test: など）の形式に従う必要があります。",
+                DOCUMENT_TEXTS["git_commit_convention"],
                 False,
             ),
         ],
@@ -92,16 +92,15 @@ EVAL_CASES = [
         "query": "コミットメッセージの書き方のルールは？",
         "candidates": [
             _candidate(
-                "コミットメッセージは Conventional Commits（feat:, fix:, test: など）の形式に従う必要があります。",
+                DOCUMENT_TEXTS["git_commit_convention"],
                 True,
             ),
             _candidate(
-                "このプロジェクトのブランチ命名規則は `feature/<内容>` や `fix/<内容>` のように"
-                "プレフィックスを付けることになっています。",
+                DOCUMENT_TEXTS["git_branch_naming"],
                 False,
             ),
             _candidate(
-                "有給休暇の申請は、取得希望日の2週間前までに人事ポータルから申請してください。",
+                DOCUMENT_TEXTS["vacation_request"],
                 False,
             ),
         ],
@@ -110,15 +109,15 @@ EVAL_CASES = [
         "query": "体調不良で休むときはどう連絡すればいい？",
         "candidates": [
             _candidate(
-                "体調不良で欠勤する場合は、当日の始業前までに上長にチャットで連絡してください。",
+                DOCUMENT_TEXTS["sick_leave_policy"],
                 True,
             ),
             _candidate(
-                "有給休暇の申請は、取得希望日の2週間前までに人事ポータルから申請してください。",
+                DOCUMENT_TEXTS["vacation_request"],
                 False,
             ),
             _candidate(
-                "経費精算は、領収書を経費システムにアップロードし、支出から30日以内に申請する必要があります。",
+                DOCUMENT_TEXTS["expense_report"],
                 False,
             ),
         ],
@@ -127,12 +126,12 @@ EVAL_CASES = [
         "query": "経費の領収書はいつまでに提出すればいいですか？",
         "candidates": [
             _candidate(
-                "経費精算は、領収書を経費システムにアップロードし、支出から30日以内に申請する必要があります。",
+                DOCUMENT_TEXTS["expense_report"],
                 True,
             ),
-            _candidate("出張旅費の払い戻しには、出張前に上長の事前承認が必要です。", False),
+            _candidate(DOCUMENT_TEXTS["travel_reimbursement"], False),
             _candidate(
-                "パスワードポリシー: パスワードは12文字以上とし、90日ごとに変更する必要があります。",
+                DOCUMENT_TEXTS["password_policy"],
                 False,
             ),
         ],
@@ -141,15 +140,15 @@ EVAL_CASES = [
         "query": "パスワードやAPIキーのセキュリティルールを教えて",
         "candidates": [
             _candidate(
-                "パスワードポリシー: パスワードは12文字以上とし、90日ごとに変更する必要があります。",
+                DOCUMENT_TEXTS["password_policy"],
                 True,
             ),
             _candidate(
-                "APIキーは90日ごとにローテーションし、Vaultで安全に管理する必要があります。",
+                DOCUMENT_TEXTS["api_key_rotation"],
                 True,
             ),
             _candidate(
-                "データベースのバックアップは毎晩深夜2時に自動実行され、30日分保存されます。",
+                DOCUMENT_TEXTS["db_backup_schedule"],
                 False,
             ),
         ],
@@ -158,15 +157,15 @@ EVAL_CASES = [
         "query": "データベースのバックアップはどのくらいの頻度で行われますか？",
         "candidates": [
             _candidate(
-                "データベースのバックアップは毎晩深夜2時に自動実行され、30日分保存されます。",
+                DOCUMENT_TEXTS["db_backup_schedule"],
                 True,
             ),
             _candidate(
-                "二要素認証（2FA）は、設定ページの「セキュリティ」タブから認証アプリを使って有効化できます。",
+                DOCUMENT_TEXTS["two_factor_auth"],
                 False,
             ),
             _candidate(
-                "新入社員のオンボーディングでは、初日にPCの貸与とアカウント発行、社内システムの説明を行います。",
+                DOCUMENT_TEXTS["onboarding_checklist"],
                 False,
             ),
         ],
@@ -175,30 +174,29 @@ EVAL_CASES = [
         "query": "新しく入社した人に初日にやることは？",
         "candidates": [
             _candidate(
-                "新入社員のオンボーディングでは、初日にPCの貸与とアカウント発行、社内システムの説明を行います。",
+                DOCUMENT_TEXTS["onboarding_checklist"],
                 True,
             ),
             _candidate(
-                "退職者のオフボーディングでは、最終出社日にアクセス権限を全て失効させ、貸与物を回収します。",
+                DOCUMENT_TEXTS["offboarding_checklist"],
                 False,
             ),
-            _candidate("会議室の予約は社内カレンダーアプリから行えます。30分単位で予約可能です。", False),
+            _candidate(DOCUMENT_TEXTS["meeting_room_booking"], False),
         ],
     },
     {
         "query": "この検索の仕組みは何段階になっていますか？",
         "candidates": [
             _candidate(
-                "このアプリの検索は2段階構成です。まずベクトル類似度で候補を広めに集め、"
-                "その後LLMに採点させて関連する文書だけに絞り込みます。",
+                DOCUMENT_TEXTS["rag_architecture"],
                 True,
             ),
             _candidate(
-                "ベクトルDBにはChromaを採用しています。ローカルに永続化でき、追加のサーバー起動が不要なためです。",
+                DOCUMENT_TEXTS["chroma_choice"],
                 False,
             ),
             _candidate(
-                "プリンターの紙詰まりが起きた場合は、電源を切ってから用紙トレイをゆっくり引き出してください。",
+                DOCUMENT_TEXTS["printer_troubleshooting"],
                 False,
             ),
         ],
