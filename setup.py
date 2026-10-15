@@ -135,18 +135,17 @@ def _ollama_model_pulled() -> bool:
     """OLLAMA_MODELがOllamaに実際にpull済みかを確認する。
 
     未pullだとモデル呼び出し時に初めて"model not found"エラーになるため事前検出する。
-    Ollamaのモデル名はタグ付き（例: "llama3.1:latest"）で返るため、OLLAMA_MODELに
-    タグが無い場合は暗黙のデフォルトタグ "latest" を補って比較する。一覧取得自体に
-    失敗した場合は判定不能なだけなので、安全側（pull済みとみなす）に倒す。
+    Ollamaのモデル名はタグ付き（例: "llama3.1:8b-instruct-q8_0"）で返るため、OLLAMA_MODELに
+    タグが無い場合はpull済みモデル名からタグを除いたベース名と比較する。タグ付きの場合は
+    完全一致。一覧取得自体に失敗した場合は判定不能なだけなので、安全側（pull済みとみなす）に倒す。
     """
     names = _fetch_ollama_pulled_model_names()
     if names is None:
         return True
 
-    candidates = {OLLAMA_MODEL}
-    if ":" not in OLLAMA_MODEL:
-        candidates.add(f"{OLLAMA_MODEL}:latest")
-    return bool(names & candidates)
+    if ":" in OLLAMA_MODEL:
+        return OLLAMA_MODEL in names
+    return any(name.rsplit(":", 1)[0] == OLLAMA_MODEL for name in names)
 
 
 def _ollama_timeout_kwargs() -> dict:

@@ -264,6 +264,26 @@ def test_ollama_model_pulled_true_when_default_tag_matches_untagged_model(monkey
     assert setup._ollama_model_pulled() is True
 
 
+def test_ollama_model_pulled_true_when_untagged_model_pulled_with_non_latest_tag(
+    monkeypatch,
+):
+    """OLLAMA_MODELにタグが無い場合、`:latest`以外のタグでpull済みでもTrueになる。"""
+    monkeypatch.setattr(setup, "OLLAMA_MODEL", "llama3.1")
+    _patch_tags_response(monkeypatch, {"models": [{"name": "llama3.1:8b-instruct-q8_0"}]})
+
+    assert setup._ollama_model_pulled() is True
+
+
+def test_ollama_model_pulled_false_when_untagged_model_differs_only_by_prefix(
+    monkeypatch,
+):
+    """タグ無し指定のベース名比較は前方一致ではなく完全一致で行う。"""
+    monkeypatch.setattr(setup, "OLLAMA_MODEL", "llama3")
+    _patch_tags_response(monkeypatch, {"models": [{"name": "llama3.1:latest"}]})
+
+    assert setup._ollama_model_pulled() is False
+
+
 def test_ollama_model_pulled_false_when_model_not_in_list(monkeypatch):
     monkeypatch.setattr(setup, "OLLAMA_MODEL", "llama3.1")
     _patch_tags_response(monkeypatch, {"models": [{"name": "mistral:latest"}]})
