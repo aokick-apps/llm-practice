@@ -284,6 +284,52 @@ def test_ollama_model_pulled_false_when_untagged_model_differs_only_by_prefix(
     assert setup._ollama_model_pulled() is False
 
 
+def test_ollama_model_pulled_true_when_untagged_model_among_multiple_pulled_models(
+    monkeypatch,
+):
+    """複数モデルがpull済みでも、該当ベース名のモデルが1つでもあればTrueになる。"""
+    monkeypatch.setattr(setup, "OLLAMA_MODEL", "llama3.1")
+    _patch_tags_response(
+        monkeypatch,
+        {"models": [{"name": "mistral:latest"}, {"name": "llama3.1:70b"}]},
+    )
+
+    assert setup._ollama_model_pulled() is True
+
+
+def test_ollama_model_pulled_true_when_untagged_namespaced_model_pulled_with_tag(
+    monkeypatch,
+):
+    """境界値: 名前空間付き（スラッシュ含む）のタグ無し指定でもベース名比較で一致する。"""
+    monkeypatch.setattr(setup, "OLLAMA_MODEL", "hf.co/user/model")
+    _patch_tags_response(monkeypatch, {"models": [{"name": "hf.co/user/model:Q4_K_M"}]})
+
+    assert setup._ollama_model_pulled() is True
+
+
+def test_ollama_model_pulled_false_when_tagged_model_only_other_tag_of_untagged_name(
+    monkeypatch,
+):
+    """タグ付き指定では、ベース名が同じ別タグのpull済みモデルがあっても完全一致しなければFalse。"""
+    monkeypatch.setattr(setup, "OLLAMA_MODEL", "llama3.1:8b")
+    _patch_tags_response(
+        monkeypatch,
+        {"models": [{"name": "llama3.1:70b"}, {"name": "llama3.1:8b-instruct-q8_0"}]},
+    )
+
+    assert setup._ollama_model_pulled() is False
+
+
+def test_ollama_model_pulled_false_when_untagged_model_is_suffix_of_pulled_name(
+    monkeypatch,
+):
+    """タグ無し指定のベース名が、pull済みモデル名の末尾側にだけ一致する場合はFalse。"""
+    monkeypatch.setattr(setup, "OLLAMA_MODEL", "llama3.1")
+    _patch_tags_response(monkeypatch, {"models": [{"name": "custom-llama3.1:latest"}]})
+
+    assert setup._ollama_model_pulled() is False
+
+
 def test_ollama_model_pulled_false_when_model_not_in_list(monkeypatch):
     monkeypatch.setattr(setup, "OLLAMA_MODEL", "llama3.1")
     _patch_tags_response(monkeypatch, {"models": [{"name": "mistral:latest"}]})
