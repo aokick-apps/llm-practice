@@ -1672,3 +1672,33 @@ def test_auto_generate_thread_title_skips_when_no_conversation(tmp_path, monkeyp
     assert memory.auto_generate_thread_title("thread-empty", "質問", "回答", model) is False
 
     assert model.calls == 0
+
+
+ANSWER_WITH_SOURCES_HEADING = "調べた結果です。\n\n## 参照元\n\n- 回答本文の中に書かれた見出しです。\n\n以上です。"
+
+
+def test_load_conversation_restores_sources_when_answer_contains_sources_heading(tmp_path, monkeypatch):
+    """境界値: 回答本文に参照元見出しと同じ文字列が含まれていても、本物の参照元セクションを復元する。"""
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    sources = [Document(page_content="本文1", metadata={"source": "data/a.txt"})]
+
+    memory.save_conversation(question="質問", answer=ANSWER_WITH_SOURCES_HEADING, thread_id="thread-a", sources=sources)
+    conversation = memory.load_conversation("thread-a")[0]
+
+    assert conversation["answer"] == ANSWER_WITH_SOURCES_HEADING
+    assert [(d.page_content, d.metadata) for d in conversation["sources"]] == [("本文1", {"source": "data/a.txt"})]
+
+
+def test_strip_sources_section_keeps_whole_answer_when_answer_contains_sources_heading(tmp_path, monkeypatch):
+    """境界値: 回答本文に参照元見出しと同じ文字列が含まれていても、回答は欠けず参照元JSONだけが取り除かれる。"""
+    monkeypatch.setattr(memory, "CONVERSATIONS_DIR", tmp_path)
+    sources = [Document(page_content="本文1", metadata={"source": "data/a.txt"})]
+    path = memory.save_conversation(
+        question="質問", answer=ANSWER_WITH_SOURCES_HEADING, thread_id="thread-a", sources=sources
+    )
+    content = path.read_text(encoding="utf-8")
+
+    stripped = memory.strip_sources_section(content)
+
+    assert ANSWER_WITH_SOURCES_HEADING in stripped
+    assert memory._serialize_sources(sources) not in stripped

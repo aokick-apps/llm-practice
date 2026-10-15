@@ -179,6 +179,37 @@ def _read_text_safe(path: Path) -> str | None:
         return None
 
 
+def _locate_qa(content: str) -> tuple[int, int, int, int] | None:
+    """文字数メタデータから質問・回答の範囲 (質問開始, 質問終了, 回答開始, 回答終了) を求める。
+
+    メタデータが無い旧形式、または記録文字数と本文がズレている場合は None を返す。
+    """
+    q_len_match = _QUESTION_LENGTH_PATTERN.search(content)
+    a_len_match = _ANSWER_LENGTH_PATTERN.search(content)
+    if not (q_len_match and a_len_match):
+        return None
+    q_start = content.find(_QUESTION_HEADER)
+    if q_start == -1:
+        return None
+    q_start += len(_QUESTION_HEADER)
+    q_end = q_start + int(q_len_match.group(1))
+    a_start = content.find(_ANSWER_HEADER, q_end)
+    # 質問の直後に回答見出しが続かない場合は、切り出さずフォールバックに任せる。
+    if a_start != q_end:
+        return None
+    a_start += len(_ANSWER_HEADER)
+    return q_start, q_end, a_start, a_start + int(a_len_match.group(1))
+
+
+def _find_sources_header(content: str) -> int:
+    """参照元見出しの位置を返す（無ければ -1）。
+
+    回答本文に同じ見出し文字列が含まれていても誤検出しないよう、回答の終端より後ろだけを探す。
+    """
+    located = _locate_qa(content)
+    return content.find(_SOURCES_HEADER, located[3] if located else 0)
+
+
 def _extract_qa(content: str) -> tuple[str, str]:
     """会話ログMarkdownの本文から質問・回答を抜き出す。
 
@@ -186,20 +217,10 @@ def _extract_qa(content: str) -> tuple[str, str]:
     "## 質問"/"## 回答"に類する文字列が含まれていても誤って途中で切れないようにするため）。
     メタデータが無い旧形式ファイルは正規表現ベースの抽出にフォールバックする。
     """
-    q_len_match = _QUESTION_LENGTH_PATTERN.search(content)
-    a_len_match = _ANSWER_LENGTH_PATTERN.search(content)
-    if q_len_match and a_len_match:
-        q_start = content.find(_QUESTION_HEADER)
-        if q_start != -1:
-            q_start += len(_QUESTION_HEADER)
-            q_end = q_start + int(q_len_match.group(1))
-            a_start = content.find(_ANSWER_HEADER, q_end)
-            # 質問の直後に回答見出しが続かない（記録文字数と本文がズレている等）場合は
-            # 切り出さずフォールバックに任せる。
-            if a_start == q_end:
-                a_start += len(_ANSWER_HEADER)
-                a_end = a_start + int(a_len_match.group(1))
-                return content[q_start:q_end].strip(), content[a_start:a_end].strip()
+    located = _locate_qa(content)
+    if located:
+        q_start, q_end, a_start, a_end = located
+        return content[q_start:q_end].strip(), content[a_start:a_end].strip()
 
     q_match = _QUESTION_PATTERN.search(content)
     a_match = _ANSWER_PATTERN.search(content)
@@ -223,7 +244,7 @@ def _extract_sources(content: str) -> list[Document]:
     len_match = _SOURCES_LENGTH_PATTERN.search(content)
     if not len_match:
         return []
-    start = content.find(_SOURCES_HEADER)
+    start = _find_sources_header(content)
     if start == -1:
         return []
     start += len(_SOURCES_HEADER)
@@ -248,7 +269,7 @@ def strip_sources_section(content: str) -> str:
     len_match = _SOURCES_LENGTH_PATTERN.search(content)
     if not len_match:
         return content
-    sources_start = content.find(_SOURCES_HEADER)
+    sources_start = _find_sources_header(content)
     if sources_start == -1:
         return content
     json_end = sources_start + len(_SOURCES_HEADER) + int(len_match.group(1))
