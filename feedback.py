@@ -12,7 +12,11 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from filelock import FileLock
+
 FEEDBACK_PATH = Path(__file__).parent / "data" / "feedback.jsonl"
+
+FEEDBACK_LOCK_TIMEOUT_SECONDS = 10
 
 RATING_UP = "up"
 RATING_DOWN = "down"
@@ -44,11 +48,10 @@ def record_feedback(question: str, answer: str, rating: str, thread_id: str) -> 
 
     rating は RATING_UP（👍）または RATING_DOWN（👎）のいずれか。
     同じ (question, answer, thread_id) が記録済みの場合は追記しない。
+    追記は専用ロックで排他制御し、ロックを取得できない場合は `filelock.Timeout` を送出する。
     """
     if rating not in _VALID_RATINGS:
         raise ValueError(f"不正なratingです: {rating!r}")
-    if get_recorded_rating(question, answer, thread_id) is not None:
-        return
 
     FEEDBACK_PATH.parent.mkdir(parents=True, exist_ok=True)
     record = {
@@ -58,8 +61,13 @@ def record_feedback(question: str, answer: str, rating: str, thread_id: str) -> 
         "answer": answer,
         "rating": rating,
     }
-    with FEEDBACK_PATH.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    lock_path = FEEDBACK_PATH.with_name(FEEDBACK_PATH.name + ".lock")
+    with FileLock(str(lock_path), timeout=FEEDBACK_LOCK_TIMEOUT_SECONDS):
+        # 重複判定も同じロック内で行い、同時呼び出しでの二重記録を防ぐ
+        if get_recorded_rating(question, answer, thread_id) is not None:
+            return
+        with FEEDBACK_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 def load_feedback_records() -> list[dict]:

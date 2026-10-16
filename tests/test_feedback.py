@@ -255,3 +255,45 @@ def test_extract_down_records_empty_and_no_downs_and_zero_limit():
     assert feedback.extract_down_records([]) == []
     assert feedback.extract_down_records([{"rating": "up"}]) == []
     assert feedback.extract_down_records([{"rating": "down"}], limit=0) == []
+
+
+def test_record_feedback_uses_dedicated_lock_file(tmp_path, monkeypatch):
+    path = tmp_path / "feedback.jsonl"
+    monkeypatch.setattr(feedback, "FEEDBACK_PATH", path)
+
+    feedback.record_feedback("Q", "A", feedback.RATING_UP, "thread-a")
+
+    assert (tmp_path / "feedback.jsonl.lock").exists()
+
+
+def test_record_feedback_raises_timeout_when_lock_held(tmp_path, monkeypatch):
+    from filelock import FileLock, Timeout
+
+    path = tmp_path / "feedback.jsonl"
+    monkeypatch.setattr(feedback, "FEEDBACK_PATH", path)
+    monkeypatch.setattr(feedback, "FEEDBACK_LOCK_TIMEOUT_SECONDS", 0.1)
+
+    with FileLock(str(tmp_path / "feedback.jsonl.lock")):
+        with pytest.raises(Timeout):
+            feedback.record_feedback("Q", "A", feedback.RATING_UP, "thread-a")
+
+    assert not path.exists()
+
+
+def test_record_feedback_concurrent_threads_keep_valid_lines(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    path = tmp_path / "feedback.jsonl"
+    monkeypatch.setattr(feedback, "FEEDBACK_PATH", path)
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        list(
+            ex.map(
+                lambda i: feedback.record_feedback(f"Q{i}", "長文" * 5000, feedback.RATING_UP, "t"),
+                range(20),
+            )
+        )
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 20
+    assert all(json.loads(line)["rating"] == "up" for line in lines)
