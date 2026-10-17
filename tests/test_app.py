@@ -3932,6 +3932,47 @@ def test_confirm_bulk_delete_clears_download_state_of_deleted_files(monkeypatch)
     assert "download_bytes_a.pdf" not in at.session_state
 
 
+def test_confirm_bulk_delete_keeps_download_state_of_unselected_and_failed_files(tmp_path, monkeypatch):
+    """境界: 削除対象外・削除失敗のファイルのダウンロード用セッション状態は残る。"""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True)
+    for fname in ("a.pdf", "b.txt", "c.md"):
+        (data_dir / fname).write_bytes(b"data")
+    monkeypatch.setattr(ingest, "DATA_DIR", data_dir)
+    files = [
+        {"name": "a.pdf", "chunk_count": 3},
+        {"name": "b.txt", "chunk_count": 1},
+        {"name": "c.md", "chunk_count": 2},
+    ]
+    monkeypatch.setattr(ingest, "list_indexed_files", lambda: list(files))
+
+    def fake_delete_indexed_files(names):
+        deleted = [n for n in names if n != "b.txt"]
+        files[:] = [f for f in files if f["name"] not in deleted]
+        return deleted
+
+    monkeypatch.setattr(ingest, "delete_indexed_files", fake_delete_indexed_files)
+    empty_report = {"added": [], "updated": [], "removed": [], "failed": []}
+    monkeypatch.setattr(ingest, "sync_data_dir", lambda verbose=False, on_progress=None: empty_report)
+
+    at = _run_app()
+    at = _checkbox(at, "a.pdf").check().run()
+    at = _checkbox(at, "b.txt").check().run()
+    at = _bulk_delete_button(at).click().run()
+    for name in ("a.pdf", "b.txt", "c.md"):
+        at.session_state[f"pending_download_{name}"] = True
+        at.session_state[f"download_bytes_{name}"] = (0.0, b"data")
+    confirm_button = next(b for b in at.sidebar.button if b.key == "confirm_bulk_delete")
+    at = confirm_button.click().run()
+
+    assert at.exception == []
+    assert "pending_download_a.pdf" not in at.session_state
+    assert "download_bytes_a.pdf" not in at.session_state
+    for name in ("b.txt", "c.md"):
+        assert f"pending_download_{name}" in at.session_state
+        assert f"download_bytes_{name}" in at.session_state
+
+
 def test_confirm_bulk_delete_shows_error_for_files_that_failed_to_delete(monkeypatch):
     """異常系: 一部のファイルの削除に失敗した場合（delete_indexed_files()が一部だけ返す）、
     成功分は再同期しつつ、失敗したファイル名をst.errorで通知する。失敗したファイルの
