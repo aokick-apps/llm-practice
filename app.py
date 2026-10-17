@@ -581,6 +581,8 @@ def _render_bulk_delete_controls(indexed_files: list[dict]) -> None:
         failed_names = [name for name in pending_names if name not in deleted_names]
         for name in deleted_names:
             st.session_state.pop(f"selected_delete_{name}", None)
+            st.session_state.pop(f"pending_download_{name}", None)
+            st.session_state.pop(f"download_bytes_{name}", None)
         st.session_state.pop(pending_key, None)
         if deleted_names:
             _sync_and_report(f"選択した{len(deleted_names)}件のファイルを削除中...")

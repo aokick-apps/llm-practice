@@ -3906,6 +3906,32 @@ def test_confirm_bulk_delete_calls_delete_indexed_files_and_resyncs(monkeypatch)
     assert at.sidebar.error == []
 
 
+def test_confirm_bulk_delete_clears_download_state_of_deleted_files(monkeypatch):
+    """一括削除の確定で、削除したファイルのダウンロード用セッション状態も消える。"""
+    files = [{"name": "a.pdf", "chunk_count": 3}, {"name": "b.txt", "chunk_count": 1}]
+    monkeypatch.setattr(ingest, "list_indexed_files", lambda: list(files))
+
+    def fake_delete_indexed_files(names):
+        files[:] = [f for f in files if f["name"] not in names]
+        return list(names)
+
+    monkeypatch.setattr(ingest, "delete_indexed_files", fake_delete_indexed_files)
+    empty_report = {"added": [], "updated": [], "removed": [], "failed": []}
+    monkeypatch.setattr(ingest, "sync_data_dir", lambda verbose=False, on_progress=None: empty_report)
+
+    at = _run_app()
+    at = _checkbox(at, "a.pdf").check().run()
+    at = _bulk_delete_button(at).click().run()
+    at.session_state["pending_download_a.pdf"] = True
+    at.session_state["download_bytes_a.pdf"] = b"data"
+    confirm_button = next(b for b in at.sidebar.button if b.key == "confirm_bulk_delete")
+    at = confirm_button.click().run()
+
+    assert at.exception == []
+    assert "pending_download_a.pdf" not in at.session_state
+    assert "download_bytes_a.pdf" not in at.session_state
+
+
 def test_confirm_bulk_delete_shows_error_for_files_that_failed_to_delete(monkeypatch):
     """異常系: 一部のファイルの削除に失敗した場合（delete_indexed_files()が一部だけ返す）、
     成功分は再同期しつつ、失敗したファイル名をst.errorで通知する。失敗したファイルの
